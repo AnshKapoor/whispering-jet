@@ -1,0 +1,117 @@
+experiments:
+  # EXP061-EXP070: Frechet-focused runs (5 dense exact + 5 sparse-edge)
+  - name: "EXP061"
+    experiment_name: "EXP061"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 999999
+      rdp_epsilon: 0.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP062"
+    experiment_name: "EXP062"
+    method: "optics"
+    distance_metric: "frechet"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    distance_params:
+      candidate_k: 999999
+      rdp_epsilon: 0.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP063"
+    experiment_name: "EXP063"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 999999
+      rdp_epsilon: 0.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_2.csv" }
+
+  - name: "EXP064"
+    experiment_name: "EXP064"
+    method: "optics"
+    distance_metric: "frechet"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    distance_params:
+      candidate_k: 999999
+      rdp_epsilon: 0.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_2.csv" }
+
+  - name: "EXP065"
+    experiment_name: "EXP065"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 999999
+      rdp_epsilon: 0.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  - name: "EXP066"
+    experiment_name: "EXP066"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 30
+      tau_quantile: 0.90
+      rdp_epsilon: 50.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP067"
+    experiment_name: "EXP067"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 40
+      tau_quantile: 0.90
+      rdp_epsilon: 50.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_2.csv" }
+
+  - name: "EXP068"
+    experiment_name: "EXP068"
+    method: "optics"
+    distance_metric: "frechet"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    distance_params:
+      candidate_k: 30
+      tau_quantile: 0.90
+      rdp_epsilon: 50.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP069"
+    experiment_name: "EXP069"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 30
+      tau_quantile: 0.90
+      rdp_epsilon: 50.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_11.csv" }
+
+  - name: "EXP070"
+    experiment_name: "EXP070"
+    method: "hdbscan"
+    distance_metric: "frechet"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    distance_params:
+      candidate_k: 30
+      tau_quantile: 0.90
+      rdp_epsilon: 50.0
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_11.csv" }
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+output:
+  dir: "output"
+  skip_completed: true
+
+features:
+  vector_cols: ["x_utm", "y_utm"]

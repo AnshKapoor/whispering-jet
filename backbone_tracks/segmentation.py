@@ -21,8 +21,16 @@ def segment_flights(
     split_on_identity: bool = True,
 ) -> pd.DataFrame:
     """
-    Add a 'flight_id' column using Rules A (time gap), B (direction reset), and C (distance jump).
-    Segmentation is applied per (A/D, Runway) flow; flights with too few points are dropped.
+    Add a ``flight_id`` column using rule-based boundaries per (A/D, Runway).
+
+    Rule order:
+    1. Identity split: if ``icao24`` or ``callsign`` changes, start a new flight.
+    2. Otherwise apply:
+       - Rule A: time gap
+       - Rule B: direction reset (sign flip in airport-distance deltas)
+       - Rule C: distance jump
+
+    Flights shorter than ``min_points_per_flight`` are dropped.
     """
 
     df_sorted = df.sort_values(["A/D", "Runway", "timestamp"]).reset_index(drop=True)
@@ -48,31 +56,41 @@ def segment_flights(
             )
 
             new_flight = False
-            # Rule A: time gap
-            if prev_ts is not None and (ts_curr - prev_ts).total_seconds() > time_gap_sec:
-                new_flight = True
-
-            # Rule B: direction change (sign flip in distance deltas)
-            if prev_dist is not None and prev_prev_dist is not None:
-                prev_diff = prev_dist - prev_prev_dist
-                curr_diff = dist_curr - prev_dist
-                if curr_diff != 0 and prev_diff != 0 and np.sign(curr_diff) != np.sign(prev_diff):
-                    new_flight = True
-
-            # Rule C: distance jump
-            if prev_dist is not None and abs(dist_curr - prev_dist) > distance_jump_m:
-                new_flight = True
-
-            # Rule D: identity change (icao24/callsign)
+            identity_changed = False
             if split_on_identity and pos > 0:
                 if icao_curr and prev_icao and icao_curr != prev_icao:
-                    new_flight = True
+                    identity_changed = True
                 if callsign_curr and prev_callsign and callsign_curr != prev_callsign:
+                    identity_changed = True
+
+            # Prioritize identity split. For unchanged identity, use geometric/time rules.
+            if identity_changed:
+                new_flight = True
+            else:
+                # Rule A: time gap
+                if prev_ts is not None and (ts_curr - prev_ts).total_seconds() > time_gap_sec:
+                    new_flight = True
+
+                # Rule B: direction change (sign flip in distance deltas)
+                if prev_dist is not None and prev_prev_dist is not None:
+                    prev_diff = prev_dist - prev_prev_dist
+                    curr_diff = dist_curr - prev_dist
+                    if curr_diff != 0 and prev_diff != 0 and np.sign(curr_diff) != np.sign(prev_diff):
+                        new_flight = True
+
+                # Rule C: distance jump
+                if prev_dist is not None and abs(dist_curr - prev_dist) > distance_jump_m:
                     new_flight = True
 
             if new_flight and pos > 0:
                 next_flight_id += 1
                 current_id = next_flight_id
+                # Reset local context so Rule B does not use deltas across segment boundaries.
+                prev_ts = None
+                prev_dist = None
+                prev_prev_dist = None
+                prev_icao = None
+                prev_callsign = None
 
             flight_ids[row_idx] = current_id
 

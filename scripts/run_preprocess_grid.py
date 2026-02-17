@@ -11,6 +11,7 @@ import copy
 import logging
 import sys
 from pathlib import Path
+from typing import Iterable, Set
 
 import yaml
 
@@ -30,7 +31,21 @@ def _deep_update(dst: dict, src: dict) -> dict:
     return dst
 
 
-def main(grid_path: Path) -> None:
+def _parse_only_ids(value: str | None) -> Set[int]:
+    """Parse comma-separated IDs (e.g. ``14,15,16``) into a set of ints."""
+
+    if not value:
+        return set()
+    out: Set[int] = set()
+    for raw in value.split(","):
+        token = raw.strip()
+        if not token:
+            continue
+        out.add(int(token))
+    return out
+
+
+def main(grid_path: Path, only_ids: Iterable[int] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
     grid = yaml.safe_load(grid_path.read_text(encoding="utf-8")) or {}
     base_cfg_path = Path(grid.get("base_config", "config/backbone_full.yaml"))
@@ -43,7 +58,17 @@ def main(grid_path: Path) -> None:
     output_dir = Path(base_cfg.get("output", {}).get("dir", "data")) / "preprocessed"
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    only_ids_set = {int(x) for x in (only_ids or [])}
+    if only_ids_set:
+        logging.info("Filtering preprocess variants to IDs: %s", sorted(only_ids_set))
+
     for idx, variant in enumerate(variants, start=1):
+        variant_pre_id = variant.get("preprocessed_id")
+        if only_ids_set:
+            if variant_pre_id is None:
+                continue
+            if int(variant_pre_id) not in only_ids_set:
+                continue
         cfg = copy.deepcopy(base_cfg)
         cfg = _deep_update(cfg, variant)
         if "output" not in cfg:
@@ -72,5 +97,11 @@ def main(grid_path: Path) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run preprocessing grid.")
     parser.add_argument("--grid", type=Path, default=Path("config/preprocess_grid.yaml"))
+    parser.add_argument(
+        "--only-ids",
+        type=str,
+        default="",
+        help="Comma-separated preprocessed IDs to run (e.g. 14,15,16).",
+    )
     args = parser.parse_args()
-    main(args.grid)
+    main(args.grid, only_ids=_parse_only_ids(args.only_ids))

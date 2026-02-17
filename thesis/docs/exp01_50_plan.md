@@ -93,3 +93,78 @@ Notes
 - For DTW/Frechet runs, use sparse kNN caching and LB-Keogh (already implemented).
 - Noise simulation should be run only on the top candidate(s) from EXP047–EXP050.
 - If any run fails or is too slow, record in `experiments_registry.md` and adjust parameters.
+## Post-50 preprocessing update: MP repetition dedup
+
+To reduce repeated measurement windows of the same physical flight across nearby microphones, preprocessing now applies an optional repetition check before segmentation.
+
+Rule:
+- same `icao24` + `callsign`
+- same UTC date (from `t_ref`)
+- consecutive `t_ref` gaps <= 10 minutes
+
+Policy:
+- keep earliest `t_ref` event in each close-time cluster
+- drop later repeated events (all rows belonging to those events)
+- rows with missing `icao24`/`callsign`/`t_ref` are retained and only audited
+
+Config location:
+- `preprocessing.repetition_check` in `config/backbone_full.yaml`
+
+Diagnostics per preprocessed run:
+- `output/eda/mp_repetition_checks/preprocessed_<id>_mp_repeat_summary.json`
+- `output/eda/mp_repetition_checks/preprocessed_<id>_mp_repeat_summary.csv`
+- `output/eda/mp_repetition_checks/preprocessed_<id>_mp_repeat_dropped_events.csv`
+
+## Experiment Plan: EXP051-EXP070 (DTW and Frechet extension)
+
+Goal:
+- Add 20 post-50 experiments focused on trajectory-shape distances.
+- Use `dtw-python` for DTW and `frechetdist` for discrete Frechet.
+- Prioritize HDBSCAN and OPTICS as requested.
+- Include variable-length (no-resample/no-smoothing) datasets to test DTW/Frechet behavior without fixed-length interpolation.
+
+Scope assumptions:
+- Use corrected deduplicated datasets for fixed-length runs:
+  - `output_corrected/preprocessed/preprocessed_1.csv`
+  - `output_corrected/preprocessed/preprocessed_2.csv`
+  - `output_corrected/preprocessed/preprocessed_3.csv`
+- Use variable-length raw-style datasets for no-resample checks:
+  - `output/preprocessed/preprocessed_11.csv`
+  - `output/preprocessed/preprocessed_12.csv`
+  - `output/preprocessed/preprocessed_13.csv`
+- Flow keys remain `["A/D", "Runway"]`.
+- Internal quality metrics exclude noise for silhouette/DB/CH, while `noise_frac` is always reported from raw labels.
+
+### Matrix (EXP051-EXP070)
+| id | uid | question | preprocessed_id | distance | algorithm | params | notes |
+|---|---|---|---|---|---|---|---|
+| EXP051 | EXP051_hdbscan_dtw_dense_preprocessed_1 | RQ8 DTW strategy | preprocessed_1 (corrected) | dtw | hdbscan | mcs=20, ms=10; mode=dense_exact | DTW baseline dense exact |
+| EXP052 | EXP052_optics_dtw_dense_preprocessed_1 | RQ8 DTW strategy | preprocessed_1 (corrected) | dtw | optics | min_samples=12, xi=0.04, mcs=0.04; mode=dense_exact | OPTICS dense exact |
+| EXP053 | EXP053_hdbscan_dtw_dense_preprocessed_2 | RQ8 DTW strategy | preprocessed_2 (corrected) | dtw | hdbscan | mcs=20, ms=10; mode=dense_exact | n_points sensitivity (60) |
+| EXP054 | EXP054_optics_dtw_dense_preprocessed_2 | RQ8 DTW strategy | preprocessed_2 (corrected) | dtw | optics | min_samples=12, xi=0.04, mcs=0.04; mode=dense_exact | n_points sensitivity (60) |
+| EXP055 | EXP055_hdbscan_dtw_dense_preprocessed_3 | RQ8 DTW strategy | preprocessed_3 (corrected) | dtw | hdbscan | mcs=20, ms=10; mode=dense_exact | n_points sensitivity (80) |
+| EXP056 | EXP056_hdbscan_dtw_sparse_preprocessed_1 | RQ8 DTW strategy | preprocessed_1 (corrected) | dtw | hdbscan | mcs=20, ms=10; k=30, tau_q=0.90, w=8, LB=true | dense-fill from sparse edges |
+| EXP057 | EXP057_hdbscan_dtw_sparse_preprocessed_2 | RQ8 DTW strategy | preprocessed_2 (corrected) | dtw | hdbscan | mcs=20, ms=10; k=40, tau_q=0.90, w=8, LB=true | sparse DTW variant |
+| EXP058 | EXP058_optics_dtw_sparse_preprocessed_1 | RQ8 DTW strategy | preprocessed_1 (corrected) | dtw | optics | min_samples=12, xi=0.04, mcs=0.04; k=30, tau_q=0.90, w=8 | OPTICS on sparse DTW graph |
+| EXP059 | EXP059_hdbscan_dtw_sparse_preprocessed_11 | RQ9 variable-length impact | preprocessed_11 | dtw | hdbscan | mcs=20, ms=10; k=30, tau_q=0.90, w=8, LB=true | no resample/no smoothing |
+| EXP060 | EXP060_hdbscan_dtw_sparse_preprocessed_12 | RQ9 variable-length impact | preprocessed_12 | dtw | hdbscan | mcs=20, ms=10; k=30, tau_q=0.90, w=8, LB=true | replication check on raw-style |
+| EXP061 | EXP061_hdbscan_frechet_dense_preprocessed_1 | RQ10 Frechet strategy | preprocessed_1 (corrected) | frechet | hdbscan | mcs=20, ms=10; mode=dense_exact | Frechet baseline dense exact |
+| EXP062 | EXP062_optics_frechet_dense_preprocessed_1 | RQ10 Frechet strategy | preprocessed_1 (corrected) | frechet | optics | min_samples=12, xi=0.04, mcs=0.04; mode=dense_exact | OPTICS dense exact |
+| EXP063 | EXP063_hdbscan_frechet_dense_preprocessed_2 | RQ10 Frechet strategy | preprocessed_2 (corrected) | frechet | hdbscan | mcs=20, ms=10; mode=dense_exact | n_points sensitivity (60) |
+| EXP064 | EXP064_optics_frechet_dense_preprocessed_2 | RQ10 Frechet strategy | preprocessed_2 (corrected) | frechet | optics | min_samples=12, xi=0.04, mcs=0.04; mode=dense_exact | n_points sensitivity (60) |
+| EXP065 | EXP065_hdbscan_frechet_dense_preprocessed_3 | RQ10 Frechet strategy | preprocessed_3 (corrected) | frechet | hdbscan | mcs=20, ms=10; mode=dense_exact | n_points sensitivity (80) |
+| EXP066 | EXP066_hdbscan_frechet_sparse_preprocessed_1 | RQ10 Frechet strategy | preprocessed_1 (corrected) | frechet | hdbscan | mcs=20, ms=10; k=30, tau_q=0.90, rdp_eps=50 | sparse-edge Frechet |
+| EXP067 | EXP067_hdbscan_frechet_sparse_preprocessed_2 | RQ10 Frechet strategy | preprocessed_2 (corrected) | frechet | hdbscan | mcs=20, ms=10; k=40, tau_q=0.90, rdp_eps=50 | sparse Frechet variant |
+| EXP068 | EXP068_optics_frechet_sparse_preprocessed_1 | RQ10 Frechet strategy | preprocessed_1 (corrected) | frechet | optics | min_samples=12, xi=0.04, mcs=0.04; k=30, tau_q=0.90, rdp_eps=50 | OPTICS on sparse Frechet graph |
+| EXP069 | EXP069_hdbscan_frechet_sparse_preprocessed_11 | RQ9 variable-length impact | preprocessed_11 | frechet | hdbscan | mcs=20, ms=10; k=30, tau_q=0.90, rdp_eps=50 | no resample/no smoothing |
+| EXP070 | EXP070_hdbscan_frechet_sparse_preprocessed_13 | RQ9 variable-length impact | preprocessed_13 | frechet | hdbscan | mcs=20, ms=10; k=30, tau_q=0.90, rdp_eps=50 | second raw-style check |
+
+Tracking and execution notes:
+- Keep these as planned runs until corresponding YAML grid entries are added.
+- Ensure `skip_completed` does not hide reruns when changing distance parameters.
+- Compare each DTW/Frechet run against its Euclidean reference from EXP001-EXP050 on:
+  - valid-flow count,
+  - non-noise cluster count,
+  - `noise_frac`,
+  - silhouette/DB/CH (valid-flow weighted),
+  - runtime.

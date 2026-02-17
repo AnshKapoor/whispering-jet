@@ -168,6 +168,8 @@ def preprocess_flights(
 
     n_points = int(resampling_cfg.get("n_points", 40))
     method = str(resampling_cfg.get("method", "time")).lower()
+    resampling_enabled = bool(resampling_cfg.get("enabled", True))
+    raw_mode = (not resampling_enabled) or method in {"none", "raw", "off", "disabled"}
     resample_cols = ["altitude", "dist_to_airport_m"]
     if use_utm:
         resample_cols = ["x_utm", "y_utm", *resample_cols, "latitude", "longitude"]
@@ -231,17 +233,23 @@ def preprocess_flights(
                         audit=smooth_audit,
                     )
 
-        try:
-            resampled = resample_trajectory(
-                flight_sorted,
-                n_points=n_points,
-                method=method,
-                columns=resample_cols,
-            )
-            outputs.append(resampled)
-        except Exception as exc:  # pragma: no cover - defensive
-            logging.warning("Skipping flight %s due to resampling error: %s", flight_id, exc)
-            continue
+        if raw_mode:
+            # Keep original points in timestamp order and assign sequential step index.
+            raw = flight_sorted.reset_index(drop=True).copy()
+            raw["step"] = np.arange(len(raw), dtype=int)
+            outputs.append(raw)
+        else:
+            try:
+                resampled = resample_trajectory(
+                    flight_sorted,
+                    n_points=n_points,
+                    method=method,
+                    columns=resample_cols,
+                )
+                outputs.append(resampled)
+            except Exception as exc:  # pragma: no cover - defensive
+                logging.warning("Skipping flight %s due to resampling error: %s", flight_id, exc)
+                continue
 
     if not outputs:
         return pd.DataFrame()
@@ -249,6 +257,8 @@ def preprocess_flights(
     result = pd.concat(outputs, ignore_index=True)
     if smooth_enabled:
         logger.info("Smoothing usage counts: %s", smooth_audit)
+    if raw_mode:
+        logger.info("Resampling disabled: keeping raw per-flight points with sequential step.")
     if rdp_enabled:
         logger.info("RDP simplification applied to %d flights (epsilon=%.2f m)", rdp_applied, rdp_epsilon_m)
     return result

@@ -1,5 +1,4 @@
-base_config: config/backbone_full.yaml
-# Repetition-check settings are inherited from the base config unless a variant overrides them.
+base_config: config/backbone_full_corrected.yaml
 
 variants:
   - preprocessed_id: 1
@@ -105,63 +104,4 @@ variants:
       smoothing:
         enabled: true
         method: "ewm"
-        window_length: 7
-
-  - preprocessed_id: 11
-    preprocessing:
-      resampling:
-        enabled: false
-        method: "none"
-      smoothing:
-        enabled: false
-        method: "none"
-
-  - preprocessed_id: 12
-    preprocessing:
-      resampling:
-        enabled: false
-        method: "none"
-      smoothing:
-        enabled: false
-        method: "none"
-
-  - preprocessed_id: 13
-    preprocessing:
-      resampling:
-        enabled: false
-        method: "none"
-      smoothing:
-        enabled: false
-        method: "none"
-
-  - preprocessed_id: 14
-    preprocessing:
-      resampling:
-        n_points: 40
-        method: "index"
-      smoothing:
-        enabled: true
-        method: "savgol"
-        window_length: 9
-        polyorder: 2
-
-  - preprocessed_id: 15
-    preprocessing:
-      resampling:
-        n_points: 60
-        method: "index"
-      smoothing:
-        enabled: true
-        method: "savgol"
-        window_length: 9
-        polyorder: 2
-
-  - preprocessed_id: 16
-    preprocessing:
-      resampling:
-        n_points: 50
-        method: "index"
-      smoothing:
-        enabled: true
-        method: "moving_average"
         window_length: 7

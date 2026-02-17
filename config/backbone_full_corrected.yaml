@@ -2,7 +2,7 @@ input:
   csv_glob: "matched_trajectories/matched_trajs_*.csv"
   parse_dates: ["timestamp", "firstseen", "lastseen"]
   timezone: "UTC"
-  preprocessed_csv: "data/preprocessed/preprocessed_1.csv"
+  preprocessed_csv: "output_corrected/preprocessed/preprocessed_1.csv"
 
 coordinates:
   use_utm: true
@@ -15,7 +15,6 @@ segmentation:
   split_on_identity: true
 
 flows:
-  # Use flow-based clustering by default.
   flow_keys: ["A/D", "Runway"]
   include: []
 
@@ -41,7 +40,7 @@ preprocessing:
   serial_start: 1
   smoothing:
     enabled: true
-    method: "auto"  # options: auto/savgol, moving_average, median, ewm, none
+    method: "auto"
     window_length: 9
     polyorder: 2
     columns: ["latitude", "longitude", "altitude"]
@@ -51,7 +50,7 @@ preprocessing:
 
 clustering:
   method: "optics"
-  distance_metric: "euclidean"  # options: euclidean, dtw, frechet
+  distance_metric: "euclidean"
   evaluation:
     include_noise: false
   optics:
@@ -80,7 +79,7 @@ testing:
   max_clusters_per_flow: null
 
 output:
-  dir: "output"
+  dir: "output_corrected"
   experiment_name: "EXP001"
   save_preprocessed: true
   save_flight_metadata: true
@@ -89,5 +88,5 @@ output:
 
 logging:
   dir: "logs/experiments"
-  filename: "backbone_EXP001.log"
+  filename: "backbone_EXP001_corrected.log"
   level: "INFO"

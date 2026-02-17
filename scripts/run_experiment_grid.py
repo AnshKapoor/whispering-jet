@@ -6,6 +6,7 @@ import argparse
 import copy
 import itertools
 import sys
+import time
 from pathlib import Path
 
 import yaml
@@ -55,11 +56,26 @@ def main(grid_path: Path) -> None:
     skip_completed = bool(grid.get("output", {}).get("skip_completed", True))
     base_cfg_path = Path("config/backbone_full.yaml")
     base_cfg = yaml.safe_load(base_cfg_path.read_text(encoding="utf-8"))
+    total_runs = 0
+    for exp in experiments:
+        method = exp["method"]
+        method_params = exp.get(method, {})
+        if method_params:
+            total_runs += len(iter_param_grid(method_params))
+        else:
+            total_runs += 1
+    print(
+        f"[grid] loaded {len(experiments)} experiment specs -> {total_runs} planned runs "
+        f"(skip_completed={skip_completed})",
+        flush=True,
+    )
 
+    run_counter = 0
     for exp in experiments:
         exp_name = exp["name"]
         method = exp["method"]
         distance_metric = exp.get("distance_metric", "euclidean")
+        distance_params = copy.deepcopy(exp.get("distance_params", {}))
 
         # Prepare parameter sweeps
         param_space = []
@@ -77,10 +93,12 @@ def main(grid_path: Path) -> None:
             )
 
         for idx, params in enumerate(param_space, start=1):
+            run_counter += 1
             cfg = copy.deepcopy(base_cfg)
             cfg["clustering"]["method"] = method
             cfg["clustering"]["distance_metric"] = distance_metric
             cfg["clustering"][method] = params
+            cfg["clustering"]["distance_params"] = copy.deepcopy(distance_params)
             grid_flows = grid.get("flows")
             if grid_flows:
                 cfg["flows"] = copy.deepcopy(grid_flows)
@@ -104,13 +122,29 @@ def main(grid_path: Path) -> None:
             tmp_cfg_path = Path(f".tmp_grid_cfg_{exp_name}_{idx}.yaml")
             tmp_cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
             try:
+                preprocessed_csv = cfg.get("input", {}).get("preprocessed_csv", "<auto>")
+                print(
+                    f"[run {run_counter}/{total_runs}] start {cfg['output']['experiment_name']} "
+                    f"method={method} distance={distance_metric} input={preprocessed_csv}",
+                    flush=True,
+                )
                 exp_dir = Path(base_output) / "experiments" / cfg["output"]["experiment_name"]
                 if skip_completed and _is_experiment_complete(exp_dir):
-                    print(f"[skip] {cfg['output']['experiment_name']} already complete.")
+                    print(f"[run {run_counter}/{total_runs}] skip {cfg['output']['experiment_name']} already complete.", flush=True)
                     continue
+                start = time.perf_counter()
                 run_experiment(tmp_cfg_path)
+                elapsed = time.perf_counter() - start
+                print(
+                    f"[run {run_counter}/{total_runs}] done {cfg['output']['experiment_name']} in {elapsed:.1f}s",
+                    flush=True,
+                )
             except Exception as exc:
-                print(f"[error] experiment failed: {cfg['output']['experiment_name']} -> {exc}", file=sys.stderr)
+                print(
+                    f"[run {run_counter}/{total_runs}] error {cfg['output']['experiment_name']} -> {exc}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             finally:
                 tmp_cfg_path.unlink(missing_ok=True)
 

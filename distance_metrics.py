@@ -1,8 +1,11 @@
-"""Interchangeable trajectory distance metrics using only NumPy.
+"""Interchangeable trajectory distance metrics.
 
-Includes Euclidean, Dynamic Time Warping (DTW), and discrete Fréchet distances,
-plus a selector and pairwise distance matrix helper. Trajectories are expected
-as numpy arrays shaped (T, D) with D in {2, 3}.
+Primary DTW/Frechet implementations use external libraries:
+- dtw-python (`dtw` package)
+- frechetdist (`frechetdist` package)
+
+NumPy fallbacks are kept for robustness when optional libs are unavailable.
+Trajectories are expected as numpy arrays shaped (T, D) with D in {2, 3}.
 """
 
 from __future__ import annotations
@@ -13,6 +16,16 @@ import logging
 import time
 
 import numpy as np
+
+try:
+    from dtw import dtw as _dtw_python
+except Exception:  # pragma: no cover - depends on environment
+    _dtw_python = None
+
+try:
+    from frechetdist import frdist as _frechetdist
+except Exception:  # pragma: no cover - depends on environment
+    _frechetdist = None
 
 Trajectory = np.ndarray  # shape (T, D), D = 2 or 3
 DistanceFn = Callable[[Trajectory, Trajectory], float]
@@ -49,12 +62,28 @@ def euclidean_distance(traj1: Trajectory, traj2: Trajectory) -> float:
 
 
 def dtw_distance(traj1: Trajectory, traj2: Trajectory, window_size: int | None = None) -> float:
-    """Compute DTW distance between two trajectories using dynamic programming."""
+    """Compute DTW distance using dtw-python, with NumPy fallback."""
 
     traj1, traj2 = _validate_trajectories(traj1, traj2)
     t1, t2 = traj1.shape[0], traj2.shape[0]
     if window_size is not None and window_size < 0:
         raise ValueError("window_size must be non-negative or None.")
+
+    if _dtw_python is not None:
+        kwargs = {
+            "dist_method": "euclidean",
+            "step_pattern": "symmetric2",
+            "distance_only": True,
+            "keep_internals": False,
+        }
+        if window_size is not None:
+            kwargs["window_type"] = "sakoechiba"
+            kwargs["window_args"] = {"window_size": int(window_size)}
+        try:
+            alignment = _dtw_python(traj1, traj2, **kwargs)
+            return float(alignment.distance)
+        except Exception as exc:
+            logger.debug("dtw-python failed, falling back to NumPy DTW: %s", exc)
 
     dp = np.full((t1 + 1, t2 + 1), np.inf, dtype=float)
     dp[0, 0] = 0.0
@@ -75,9 +104,14 @@ def dtw_distance(traj1: Trajectory, traj2: Trajectory, window_size: int | None =
 
 
 def discrete_frechet_distance(traj1: Trajectory, traj2: Trajectory) -> float:
-    """Compute discrete Fréchet distance between two trajectories."""
+    """Compute discrete Frechet distance between two trajectories."""
 
     traj1, traj2 = _validate_trajectories(traj1, traj2)
+    if _frechetdist is not None:
+        try:
+            return float(_frechetdist(traj1.tolist(), traj2.tolist()))
+        except Exception as exc:
+            logger.debug("frechetdist failed, falling back to NumPy Frechet: %s", exc)
     t1, t2 = traj1.shape[0], traj2.shape[0]
     ca = np.full((t1, t2), np.inf, dtype=float)
 
@@ -179,7 +213,7 @@ def dtw_banded(
     w: int,
     tau: float | None = None,
 ) -> float:
-    """Compute banded DTW with optional early abandoning."""
+    """Compute banded DTW (dtw-python with fallback DP)."""
 
     traj1, traj2 = _validate_trajectories(traj1, traj2)
     n, m = traj1.shape[0], traj2.shape[0]
@@ -190,6 +224,13 @@ def dtw_banded(
 
     if w < abs(n - m):
         w = abs(n - m)
+
+    # Prefer dtw-python when available; apply tau threshold as post-check.
+    if _dtw_python is not None:
+        d = dtw_distance(traj1, traj2, window_size=w)
+        if tau is not None and d > tau:
+            return float("inf")
+        return d
 
     tau_sq = tau * tau if tau is not None else None
     prev = np.full(m + 1, np.inf, dtype=float)
@@ -218,12 +259,19 @@ def frechet_discrete(
     traj2: Trajectory,
     tau: float | None = None,
 ) -> float:
-    """Compute discrete FrÃ©chet distance with rolling DP and early abandoning."""
+    """Compute discrete Frechet distance with rolling DP and early abandoning."""
 
     traj1, traj2 = _validate_trajectories(traj1, traj2)
     n, m = traj1.shape[0], traj2.shape[0]
     if n == 0 or m == 0:
         return float("inf")
+
+    # Prefer frechetdist when available; apply tau threshold as post-check.
+    if _frechetdist is not None:
+        d = discrete_frechet_distance(traj1, traj2)
+        if tau is not None and d > tau:
+            return float("inf")
+        return d
 
     tau_sq = tau * tau if tau is not None else None
 
@@ -315,4 +363,6 @@ if __name__ == "__main__":
 
     print("Euclidean:", euclidean_distance(traj1, traj2))
     print("DTW:", dtw_distance(traj1, traj2))
-    print("Fréchet:", discrete_frechet_distance(traj1, traj2))
+    print("Frechet:", discrete_frechet_distance(traj1, traj2))
+
+

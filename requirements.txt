@@ -10,3 +10,5 @@ scipy
 shapely
 traffic
 scikit-learn
+dtw-python
+frechetdist

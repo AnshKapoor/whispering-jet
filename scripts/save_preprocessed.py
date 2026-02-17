@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
+
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -15,6 +18,210 @@ from backbone_tracks.config import load_config
 from backbone_tracks.io import add_utm_coordinates, ensure_required_columns, load_monthly_csvs, save_dataframe
 from backbone_tracks.preprocessing import preprocess_flights
 from backbone_tracks.segmentation import segment_flights
+
+
+def _normalise_identifier(series: pd.Series) -> pd.Series:
+    """Return uppercase identifiers with common null-like tokens mapped to NA."""
+
+    normalized = series.astype("string").str.strip().str.upper()
+    return normalized.mask(normalized.isin({"", "NA", "NAN", "NONE", "<NA>"}))
+
+
+def _write_repetition_reports(
+    output_dir: Path,
+    preprocessed_id: int,
+    summary: dict,
+    dropped_events: pd.DataFrame,
+) -> None:
+    """Persist repetition-check diagnostics to JSON and CSV artefacts."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"preprocessed_{preprocessed_id}_mp_repeat"
+
+    summary_path_json = output_dir / f"{stem}_summary.json"
+    summary_path_csv = output_dir / f"{stem}_summary.csv"
+    dropped_path_csv = output_dir / f"{stem}_dropped_events.csv"
+
+    summary_path_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    pd.DataFrame([summary]).to_csv(summary_path_csv, index=False)
+    dropped_events.to_csv(dropped_path_csv, index=False)
+
+
+def apply_repetition_dedup(
+    df: pd.DataFrame,
+    repetition_cfg: dict,
+    preprocessed_id: int,
+) -> pd.DataFrame:
+    """Drop repeated MP measurement events within identity/date time windows.
+
+    Repetition is defined for rows sharing the same (icao24, callsign, UTC date)
+    where distinct event timestamps ``t_ref`` are within ``window_minutes``.
+    The earliest event in each close-time cluster is kept and later events are dropped.
+    """
+
+    enabled = bool(repetition_cfg.get("enabled", False))
+    if not enabled:
+        return df
+
+    required_cols = ["icao24", "callsign", "MP", "t_ref"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+
+    action = str(repetition_cfg.get("action", "drop")).strip().lower()
+    keep_policy = str(repetition_cfg.get("keep_policy", "earliest_t_ref")).strip().lower()
+    timezone = str(repetition_cfg.get("timezone", "UTC")).strip().upper()
+    window_minutes = int(repetition_cfg.get("window_minutes", 10))
+    require_same_date = bool(repetition_cfg.get("require_same_date", True))
+    identity = str(repetition_cfg.get("identity", "icao24_callsign")).strip().lower()
+    output_dir = Path(repetition_cfg.get("output_dir", "output/eda/mp_repetition_checks"))
+
+    if action not in {"drop", "audit"}:
+        raise ValueError(f"Unsupported repetition_check.action: {action}")
+    if keep_policy not in {"earliest_t_ref"}:
+        raise ValueError(f"Unsupported repetition_check.keep_policy: {keep_policy}")
+    if timezone != "UTC":
+        raise ValueError("repetition_check.timezone currently supports only UTC.")
+    if identity != "icao24_callsign":
+        raise ValueError("repetition_check.identity currently supports only 'icao24_callsign'.")
+    if window_minutes <= 0:
+        raise ValueError("repetition_check.window_minutes must be > 0.")
+
+    rows_in = int(len(df))
+    summary = {
+        "rows_in": rows_in,
+        "rows_out": rows_in,
+        "rows_dropped": 0,
+        "events_in": 0,
+        "events_kept": 0,
+        "events_dropped": 0,
+        "identity_day_groups": 0,
+        "repeat_clusters": 0,
+        "missing_key_rows": 0,
+        "window_minutes": window_minutes,
+        "timezone": timezone,
+        "keep_policy": keep_policy,
+        "action": action,
+        "enabled": enabled,
+        "require_same_date": require_same_date,
+        "identity": identity,
+        "status": "ok",
+    }
+
+    if missing_cols:
+        summary["status"] = "skipped_missing_columns"
+        summary["missing_columns"] = ",".join(missing_cols)
+        _write_repetition_reports(output_dir, preprocessed_id, summary, pd.DataFrame())
+        logging.warning(
+            "Repetition check skipped: missing columns %s",
+            missing_cols,
+        )
+        return df
+
+    work = df.copy()
+    work["_rep_icao24"] = _normalise_identifier(work["icao24"])
+    work["_rep_callsign"] = _normalise_identifier(work["callsign"])
+    work["_rep_mp"] = _normalise_identifier(work["MP"])
+    work["_rep_t_ref_utc"] = pd.to_datetime(work["t_ref"], utc=True, errors="coerce")
+    work["_rep_date"] = work["_rep_t_ref_utc"].dt.date
+
+    valid_mask = (
+        work["_rep_icao24"].notna()
+        & work["_rep_callsign"].notna()
+        & work["_rep_mp"].notna()
+        & work["_rep_t_ref_utc"].notna()
+    )
+    if require_same_date:
+        valid_mask &= work["_rep_date"].notna()
+
+    summary["missing_key_rows"] = int((~valid_mask).sum())
+
+    event_cols = ["_rep_icao24", "_rep_callsign", "_rep_mp", "_rep_t_ref_utc", "_rep_date"]
+    events = work.loc[valid_mask, event_cols].drop_duplicates().copy()
+    summary["events_in"] = int(len(events))
+
+    dropped_event_records: list[dict] = []
+    group_keys = ["_rep_icao24", "_rep_callsign", "_rep_date"] if require_same_date else ["_rep_icao24", "_rep_callsign"]
+    grouped = events.groupby(group_keys, dropna=False)
+    summary["identity_day_groups"] = int(grouped.ngroups)
+
+    window_delta = pd.Timedelta(minutes=window_minutes)
+    repeat_clusters = 0
+    for group_vals, sub in grouped:
+        sub_sorted = sub.sort_values("_rep_t_ref_utc").reset_index(drop=True)
+        if len(sub_sorted) <= 1:
+            continue
+
+        cluster_start = 0
+        for idx in range(1, len(sub_sorted) + 1):
+            boundary = idx == len(sub_sorted)
+            if not boundary:
+                gap = sub_sorted.loc[idx, "_rep_t_ref_utc"] - sub_sorted.loc[idx - 1, "_rep_t_ref_utc"]
+                boundary = gap > window_delta
+            if not boundary:
+                continue
+
+            cluster = sub_sorted.iloc[cluster_start:idx].copy()
+            if len(cluster) > 1:
+                repeat_clusters += 1
+                kept = cluster.iloc[0]
+                dropped = cluster.iloc[1:]
+                for _, row in dropped.iterrows():
+                    record = {
+                        "icao24": row["_rep_icao24"],
+                        "callsign": row["_rep_callsign"],
+                        "mp": row["_rep_mp"],
+                        "t_ref_utc": row["_rep_t_ref_utc"].isoformat(),
+                        "date_utc": str(row["_rep_date"]),
+                        "kept_t_ref_utc": kept["_rep_t_ref_utc"].isoformat(),
+                    }
+                    if require_same_date:
+                        if isinstance(group_vals, tuple):
+                            record["group_key"] = "|".join(str(v) for v in group_vals)
+                        else:
+                            record["group_key"] = str(group_vals)
+                    dropped_event_records.append(record)
+
+            cluster_start = idx
+
+    summary["repeat_clusters"] = int(repeat_clusters)
+    dropped_events = pd.DataFrame(dropped_event_records)
+    summary["events_dropped"] = int(len(dropped_events))
+    summary["events_kept"] = int(summary["events_in"] - summary["events_dropped"])
+
+    if action == "drop" and not dropped_events.empty:
+        drop_keys_df = dropped_events[["icao24", "callsign", "mp", "t_ref_utc"]].copy()
+        drop_keys_df["t_ref_utc"] = pd.to_datetime(drop_keys_df["t_ref_utc"], utc=True)
+        drop_keys_df = drop_keys_df.drop_duplicates()
+        drop_keys_df["__drop"] = True
+        marked = work.merge(
+            drop_keys_df,
+            left_on=["_rep_icao24", "_rep_callsign", "_rep_mp", "_rep_t_ref_utc"],
+            right_on=["icao24", "callsign", "mp", "t_ref_utc"],
+            how="left",
+            sort=False,
+        )
+        drop_mask = marked["__drop"].notna() & valid_mask
+        filtered = work.loc[~drop_mask].copy()
+        summary["rows_out"] = int(len(filtered))
+        summary["rows_dropped"] = int(drop_mask.sum())
+    else:
+        filtered = work.copy()
+
+    _write_repetition_reports(output_dir, preprocessed_id, summary, dropped_events)
+
+    logging.info(
+        "MP repetition check: rows_in=%d rows_out=%d rows_dropped=%d events_in=%d events_dropped=%d repeat_clusters=%d",
+        summary["rows_in"],
+        summary["rows_out"],
+        summary["rows_dropped"],
+        summary["events_in"],
+        summary["events_dropped"],
+        summary["repeat_clusters"],
+    )
+
+    drop_cols = [col for col in filtered.columns if col.startswith("_rep_")]
+    if drop_cols:
+        filtered = filtered.drop(columns=drop_cols)
+    return filtered
 
 
 def configure_logging(cfg: dict, log_name_override: str | None = None) -> None:
@@ -107,6 +314,7 @@ def main(config_path: str) -> None:
     smoothing_cfg = preprocessing_cfg.get("smoothing", {})
     resampling_cfg = preprocessing_cfg.get("resampling", {})
     filter_cfg = preprocessing_cfg.get("filter", {}) or {}
+    repetition_cfg = preprocessing_cfg.get("repetition_check", {}) or {}
     serial_column = preprocessing_cfg.get("serial_column")
     serial_start = int(preprocessing_cfg.get("serial_start", 1))
 
@@ -116,10 +324,12 @@ def main(config_path: str) -> None:
     preprocessed_id = output_cfg.get("preprocessed_id")
     if preprocessed_id is None:
         preprocessed_id = _next_preprocessed_id(output_dir)
-    out_path = output_dir / f"preprocessed_{int(preprocessed_id)}.csv"
+    preprocessed_id_int = int(preprocessed_id)
+    out_path = output_dir / f"preprocessed_{preprocessed_id_int}.csv"
 
     df = load_monthly_csvs(csv_glob=csv_glob, parse_dates=parse_dates, max_rows_total=max_rows)
     df = ensure_required_columns(df)
+    df = apply_repetition_dedup(df, repetition_cfg=repetition_cfg, preprocessed_id=preprocessed_id_int)
     if use_utm:
         df = add_utm_coordinates(df, utm_crs=utm_crs)
 

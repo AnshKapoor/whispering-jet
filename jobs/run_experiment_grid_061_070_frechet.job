@@ -1,0 +1,91 @@
+#!/bin/bash -l
+#
+# ========= Phoenix / Slurm: EXP061-EXP070 (Frechet) =========
+# Uses virtual environment: "psychic"
+# ============================================================
+
+#SBATCH --job-name=exp061_070_frechet
+#SBATCH --partition=standard
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=48G
+#SBATCH --time=72:00:00
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=a.kapoor@tu-braunschweig.de
+
+set -eo pipefail
+umask 027
+
+echo "[info] job=$SLURM_JOB_NAME id=$SLURM_JOB_ID node=$SLURM_JOB_NODELIST"
+echo "[info] part=$SLURM_JOB_PARTITION cpus=$SLURM_CPUS_PER_TASK mem=$SLURM_MEM_PER_NODE"
+
+# Submit this from repo root for simplest usage:
+#   sbatch jobs/run_experiment_grid_061_070_frechet.job
+PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
+cd "$PROJECT_ROOT"
+
+mkdir -p logs
+
+#### ----- Activate environment -----
+VENV_PATH="$HOME/venvs/psychic"
+
+module purge
+module load lib/openssl/latest
+module load python/3.9.7
+
+if [ -f "${VENV_PATH}/bin/activate" ]; then
+  source "${VENV_PATH}/bin/activate"
+else
+  echo "[error] Missing virtual env activate script: ${VENV_PATH}/bin/activate"
+  exit 1
+fi
+
+python - <<'PY'
+import sys
+assert sys.version_info >= (3, 8), f"Need Python >=3.8, got {sys.version}"
+PY
+
+echo "[info] python=$(which python)"
+python --version
+
+python - <<'PY'
+import importlib
+for name in ("dtw", "frechetdist", "numpy", "pandas", "sklearn"):
+    importlib.import_module(name)
+print("[info] dependency import check: OK (dtw, frechetdist, numpy, pandas, sklearn)")
+PY
+
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+
+#### ----- Static grid path (no command-line parameters needed) -----
+GRID_PATH="experiments/experiment_grid_061_070_frechet.yaml"
+if [ ! -f "$GRID_PATH" ]; then
+  echo "[error] Missing grid file: $GRID_PATH"
+  exit 1
+fi
+
+for p in \
+  "scripts/run_experiment_grid.py" \
+  "experiments/runner.py" \
+  "clustering/distances.py" \
+  "distance_metrics.py" \
+  "output/preprocessed/preprocessed_1.csv" \
+  "output/preprocessed/preprocessed_2.csv" \
+  "output/preprocessed/preprocessed_3.csv" \
+  "output/preprocessed/preprocessed_11.csv"
+do
+  if [ ! -f "$p" ]; then
+    echo "[error] Missing required file: $p"
+    exit 1
+  fi
+done
+
+echo "[info] starting grid: $GRID_PATH"
+srun "${VENV_PATH}/bin/python" scripts/run_experiment_grid.py --grid "$GRID_PATH"
+echo "[info] completed grid run: $GRID_PATH"

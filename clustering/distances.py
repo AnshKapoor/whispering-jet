@@ -30,13 +30,14 @@ def build_feature_matrix(
 
     feature_rows: List[List[float]] = []
     trajs: List[np.ndarray] = []
-    for _, flight in flights_df.groupby("flight_id"):
+    # Use deterministic ordering of flights to keep labels aligned with metadata.
+    for _, flight in flights_df.groupby("flight_id", sort=True):
         flight_sorted = flight.sort_values("step")
         vec: List[float] = []
         traj_coords: List[Tuple[float, float]] = []
         for _, row in flight_sorted.iterrows():
             coords = [float(row[col]) for col in vector_cols if col in row]
-            vec.extend(coords)
+            vec.extend(coords) # Alternating x and y coordinates
             if len(coords) >= 2:
                 traj_coords.append((coords[0], coords[1]))
         feature_rows.append(vec)
