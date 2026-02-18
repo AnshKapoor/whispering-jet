@@ -92,5 +92,5 @@ do
 done
 
 echo "[info] starting grid: $GRID_PATH"
-srun "${VENV_PATH}/bin/python" scripts/run_experiment_grid.py --grid "$GRID_PATH"
+srun /home/y0113724/venvs/psychic/bin/python --grid "$GRID_PATH"
 echo "[info] completed grid run: $GRID_PATH"
