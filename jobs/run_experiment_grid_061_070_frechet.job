@@ -22,14 +22,10 @@ umask 027
 echo "[info] job=$SLURM_JOB_NAME id=$SLURM_JOB_ID node=$SLURM_JOB_NODELIST"
 echo "[info] part=$SLURM_JOB_PARTITION cpus=$SLURM_CPUS_PER_TASK mem=$SLURM_MEM_PER_NODE"
 
-# Self-contained project root detection:
-# resolves repo root from this job file location, so no external parameters are needed.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-echo "[info] script_dir=${SCRIPT_DIR}"
+# Static project root on Phoenix (avoid slurm spool path issues).
+PROJECT_ROOT="/home/y0113724/Clustering/psychic-broccoli"
 echo "[info] project_root=${PROJECT_ROOT}"
 cd "$PROJECT_ROOT"
-mkdir -p "$PROJECT_ROOT/logs"
 
 #### ----- Activate environment -----
 VENV_PATH="$HOME/venvs/psychic"
