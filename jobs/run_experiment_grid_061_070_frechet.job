@@ -69,9 +69,8 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
 #### ----- Static grid path (no command-line parameters needed) -----
-GRID_PATH="experiments/experiment_grid_061_070_frechet.yaml"
-if [ ! -f "$GRID_PATH" ]; then
-  echo "[error] Missing grid file: $GRID_PATH"
+if [ ! -f "experiments/experiment_grid_061_070_frechet.yaml" ]; then
+  echo "[error] Missing grid file: experiments/experiment_grid_061_070_frechet.yaml"
   exit 1
 fi
 
@@ -91,6 +90,6 @@ do
   fi
 done
 
-echo "[info] starting grid: $GRID_PATH"
-srun /home/y0113724/venvs/psychic/bin/python --grid "$GRID_PATH"
-echo "[info] completed grid run: $GRID_PATH"
+echo "[info] starting grid: experiments/experiment_grid_061_070_frechet.yaml"
+srun /home/y0113724/venvs/psychic/bin/python scripts/run_experiment_grid.py --grid experiments/experiment_grid_061_070_frechet.yaml
+echo "[info] completed grid run: experiments/experiment_grid_061_070_frechet.yaml"
