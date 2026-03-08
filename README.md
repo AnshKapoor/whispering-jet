@@ -38,12 +38,12 @@ python scripts/convert_adsb_joblib_to_csv.py --joblib adsb/data_2022_april.jobli
 ```
 VS Code launch: `Convert ADSB Joblib to Parquet (April)`
 
-#### `merge_adsb_noise.py`
+#### `scripts/merge_adsb_noise.py`
 Purpose: Match noise measurements (noise_data.xlsx) to ADS-B joblib and write matched trajectories to Parquet + CSV.
 
 CLI:
 ```bash
-python merge_adsb_noise.py noise_data.xlsx adsb/data_2022_april.joblib --traj-output matched_trajs_april_2022.parquet --output-dir data/merged --tol-sec 10 --buffer-frac 0.5 --window-min 3 --max-airport-distance-km 25
+python scripts/merge_adsb_noise.py noise_data.xlsx adsb/data_2022_april.joblib --traj-output matched_trajs_april_2022.parquet --output-dir data/merged --tol-sec 10 --buffer-frac 0.5 --window-min 3 --max-airport-distance-km 25
 ```
 Matching logic (defaults):
 - Time match window: keep ADS-B samples with `|t - t_ref| <= 10 s`.
@@ -56,7 +56,7 @@ Matching logic (defaults):
 - Airport filter: compute UTM distance `d_airport = sqrt((x-ax)^2 + (y-ay)^2)` and keep `d_airport <= 25000 m`.
 - Downsample: keep at most one sample every `2 s` by 2-second time bins.
 - Deduplicate: drop duplicates by `(MP, t_ref, icao24, timestamp)`.
-VS Code launch: `Python Debugger: Current File with Arguments` (open `merge_adsb_noise.py` first)
+VS Code launch: `Python Debugger: Current File with Arguments` (open `scripts/merge_adsb_noise.py` first)
 
 #### `scripts/run_merge_adsb_noise_batch.py`
 Purpose: Batch matching for multiple joblibs via config.
@@ -64,15 +64,6 @@ Purpose: Batch matching for multiple joblibs via config.
 CLI:
 ```bash
 python scripts/run_merge_adsb_noise_batch.py -c config/merge_adsb_noise.yaml
-```
-VS Code launch: none
-
-#### `add_noise_runway_columns.py`
-Purpose: Add A/D and Runway to matched trajectory CSVs using noise metadata.
-
-CLI:
-```bash
-python add_noise_runway_columns.py noise_data.xlsx matched_trajectories/matched_trajs_april_2022.csv --time-tolerance-sec 45 --output-dir Enhanced
 ```
 VS Code launch: none
 
@@ -96,16 +87,16 @@ python scripts/run_preprocess_grid.py --grid config/preprocess_grid.yaml
 ```
 VS Code launch: `Run Preprocess Grid`
 
-#### `cli.py`
+#### `scripts/cli.py`
 Purpose: Full backbone pipeline (load, segment, preprocess, cluster, backbone export).
 
 CLI:
 ```bash
-python cli.py -c config/backbone_full.yaml
+python scripts/cli.py -c config/backbone_full.yaml
 ```
 Test mode config:
 ```bash
-python cli.py -c config/backbone.yaml
+python scripts/cli.py -c config/backbone.yaml
 ```
 VS Code launch: `Backbone Clustering (Full Mode)` and `Backbone Clustering (Test Mode)`
 
@@ -236,9 +227,8 @@ VS Code launch: none
 - If you store matched trajectories in a different folder, update `input.csv_glob` in `config/backbone_full.yaml` and `config/backbone.yaml`.
 
 ## Slurm helpers
-- `run_adsb_joblib_to_csv.job`: convert all joblib files in a directory (usage: `sbatch run_adsb_joblib_to_csv.job /path/to/joblib_dir`)
-- `run_merge_adsb_noise.job`: single-month noise matching
-- `run_add_noise_runway.job`: enrich matched CSVs with A/D and Runway
+- `jobs/run_adsb_joblib_to_csv.job`: convert all joblib files in a directory (usage: `sbatch jobs/run_adsb_joblib_to_csv.job /path/to/joblib_dir`)
+- `jobs/run_merge_adsb_noise.job`: single-month noise matching
 - `jobs/run_preprocessing_grid.job`: preprocessing grid
 - `jobs/run_experiment_grid.job`: experiment grid
 - `jobs/run_adsb_monthly_eda.job`: monthly ADS-B EDA

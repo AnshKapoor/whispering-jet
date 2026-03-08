@@ -54,7 +54,7 @@ mkdir -p logs
 
 JOBLIB_DIR="${1:-}"
 if [ -z "$JOBLIB_DIR" ]; then
-  echo "[error] Usage: sbatch run_adsb_joblib_to_csv.job /path/to/joblib_dir"
+  echo "[error] Usage: sbatch jobs/run_adsb_joblib_to_csv.job /path/to/joblib_dir"
   exit 2
 fi
 
