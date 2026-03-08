@@ -27,3 +27,4 @@ This registry tracks standardized preprocessed datasets used for clustering.
 | 8 | output_corrected\preprocessed\preprocessed_8.csv | 36578 | 2560460 | 70 | time | savgol | no | ['A/D', 'Runway'] |
 | 9 | output_corrected\preprocessed\preprocessed_9.csv | 36578 | 2560460 | 70 | time | savgol | no | ['A/D', 'Runway'] |
 | 10 | output_corrected\preprocessed\preprocessed_10.csv | 36578 | 1828900 | 50 | time | ewm | no | ['A/D', 'Runway'] |
+| 12 | output\preprocessed\preprocessed_12.csv | 36578 | 1828900 | 50 | time | none | no | ['A/D', 'Runway'] |
