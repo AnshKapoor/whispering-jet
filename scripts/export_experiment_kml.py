@@ -20,14 +20,56 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Dict, Tuple
 
 import pandas as pd
 from pyproj import Transformer
 
+DEFAULT_STARTPOINTS: Dict[Tuple[str, str], Tuple[float, float]] = {
+    # Source: noise_simulation/generate_doc29_inputs.py::STARTPOINTS
+    ("27L", "landing"): (546026.9, 5811859.4),
+    ("27L", "take-off"): (548229.4, 5811780.4),
+    ("09R", "landing"): (548229.4, 5811780.4),
+    ("09R", "take-off"): (546026.9, 5811859.4),
+    ("27R", "landing"): (544424.6, 5813317.4),
+    ("27R", "take-off"): (547474.3, 5813208.8),
+    ("09L", "landing"): (547474.3, 5813208.8),
+    ("09L", "take-off"): (544424.6, 5813317.4),
+}
+
 try:
-    from noise_simulation.generate_doc29_inputs import STARTPOINTS
+    from noise_simulation.generate_doc29_inputs import STARTPOINTS as STARTPOINTS_FROM_DOC29
 except Exception:
-    STARTPOINTS = {}
+    STARTPOINTS_FROM_DOC29 = {}
+
+STARTPOINTS: Dict[Tuple[str, str], Tuple[float, float]] = (
+    STARTPOINTS_FROM_DOC29 or DEFAULT_STARTPOINTS
+)
+
+MEASURING_POINT_COORDS: Dict[str, Tuple[float, float]] = {
+    # Source: merge_adsb_noise.py (mp_coords -> parse_dms)
+    "M01": (52.453611111111115, 9.760277777777778),
+    "M02": (52.465833333333336, 9.750555555555556),
+    "M03": (52.46666666666667, 9.790277777777778),
+    "M04": (52.45527777777778, 9.813333333333334),
+    "M05": (52.46805555555556, 9.8325),
+    "M06": (52.45388888888889, 9.625277777777779),
+    "M07": (52.461111111111116, 9.581944444444444),
+    "M08": (52.468611111111116, 9.546666666666667),
+    "M09": (52.468333333333334, 9.619166666666667),
+}
+
+MODE_TO_FLOW_PREFIX = {
+    "landing": "Landung",
+    "take-off": "Start",
+}
+
+
+def _format_flow_label(runway: str, mode: str) -> str:
+    """Return a human-readable flow label (e.g., 'Landung 27L')."""
+
+    flow_prefix = MODE_TO_FLOW_PREFIX.get(mode, mode)
+    return f"{flow_prefix} {runway}"
 
 
 def _load_config_preprocessed(exp_dir: Path) -> Path:
@@ -106,7 +148,19 @@ def main() -> None:
     parser.add_argument("--experiment", required=True, help="Experiment name (e.g., EXP001).")
     parser.add_argument("--max-per-cluster", type=int, default=200, help="Max flights per cluster.")
     parser.add_argument("--include-noise", action="store_true", help="Include noise cluster (-1).")
-    parser.add_argument("--include-runways", action="store_true", help="Add runway placemarks.")
+    parser.add_argument("--include-runways", action="store_true", help="Add runway/mode placemarks.")
+    parser.add_argument(
+        "--include-flow-points",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include flow threshold placemarks (Landung_*/Start_*).",
+    )
+    parser.add_argument(
+        "--include-measuring-points",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include noise measuring points (M01-M09).",
+    )
     args = parser.parse_args()
 
     exp_dir = Path("output") / "experiments" / args.experiment
@@ -176,17 +230,81 @@ def main() -> None:
 
     parts = [_kml_header(args.experiment), *style_lines]
 
-    if args.include_runways and STARTPOINTS:
+    if (args.include_runways or args.include_flow_points) and STARTPOINTS:
         transformer = Transformer.from_crs("epsg:32632", "epsg:4326", always_xy=True)
         runway_points = {}
         for (runway, mode), (x, y) in STARTPOINTS.items():
             lon, lat = transformer.transform(x, y)
-            runway_points[(runway, mode)] = (lon, lat)
-        for (runway, mode), (lon, lat) in sorted(runway_points.items()):
+            runway_points[(runway, mode)] = (lon, lat, x, y)
+
+        if args.include_runways:
+            for (runway, mode), (lon, lat, x, y) in sorted(runway_points.items()):
+                parts.append(
+                    _point_placemark(
+                        name=f"Runway {runway} ({mode})",
+                        description=json.dumps(
+                            {"runway": runway, "mode": mode, "x_utm": x, "y_utm": y},
+                            indent=2,
+                        ),
+                        lon=lon,
+                        lat=lat,
+                    )
+                )
+
+        if args.include_flow_points:
+            grouped_flow_points: Dict[Tuple[float, float], Dict[str, object]] = {}
+            for (runway, mode), (lon, lat, x, y) in runway_points.items():
+                # Group by exact UTM runway-threshold coordinates so reciprocal
+                # operations share a single placemark label.
+                key = (float(x), float(y))
+                flow_label = _format_flow_label(runway, mode)
+                if key not in grouped_flow_points:
+                    grouped_flow_points[key] = {
+                        "flow_labels": [],
+                        "runways": [],
+                        "modes": [],
+                        "x_utm": x,
+                        "y_utm": y,
+                        "lon": lon,
+                        "lat": lat,
+                    }
+                grouped_flow_points[key]["flow_labels"].append(flow_label)
+                grouped_flow_points[key]["runways"].append(runway)
+                grouped_flow_points[key]["modes"].append(mode)
+
+            for point_meta in sorted(
+                grouped_flow_points.values(),
+                key=lambda item: "/".join(sorted(item["flow_labels"])),
+            ):
+                flow_labels = sorted(point_meta["flow_labels"])
+                combined_label = "/".join(flow_labels)
+                parts.append(
+                    _point_placemark(
+                        name=f"Flow {combined_label}",
+                        description=json.dumps(
+                            {
+                                "flow_labels": flow_labels,
+                                "runways": sorted(point_meta["runways"]),
+                                "modes": sorted(point_meta["modes"]),
+                                "x_utm": point_meta["x_utm"],
+                                "y_utm": point_meta["y_utm"],
+                            },
+                            indent=2,
+                        ),
+                        lon=float(point_meta["lon"]),
+                        lat=float(point_meta["lat"]),
+                    )
+                )
+
+    if args.include_measuring_points:
+        for mp, (lat, lon) in sorted(MEASURING_POINT_COORDS.items()):
             parts.append(
                 _point_placemark(
-                    name=f"Runway {runway} ({mode})",
-                    description=json.dumps({"runway": runway, "mode": mode}, indent=2),
+                    name=f"MP {mp}",
+                    description=json.dumps(
+                        {"measurement_point": mp, "latitude": lat, "longitude": lon},
+                        indent=2,
+                    ),
                     lon=lon,
                     lat=lat,
                 )

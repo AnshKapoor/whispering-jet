@@ -55,7 +55,7 @@ def _load_labels_for_flow(exp_dir: Path, flow_name: str) -> pd.DataFrame:
 
     if "A/D" in labels.columns and "Runway" in labels.columns and "_" in flow_name:
         ad, runway = flow_name.split("_", 1)
-        labels = labels[(labels["A/D"] == ad) & (labels["Runway"] == runway)]
+        labels = labels[(labels["A/D"] == ad) & (labels["Runway"] == runway)].copy()
 
     return labels
 
@@ -86,8 +86,10 @@ def _read_preprocessed(preprocessed_path: Path, flight_ids: set[int]) -> pd.Data
 
 def _cluster_palette(cluster_ids: Iterable[int]) -> dict[int, str]:
     palette = {}
-    base = ["#E15759", "#59A14F", "#4E79A7", "#F1CE63"]
+    base = ["#E15759", "#59A14F", "#4E79A7", "#F1CE63","#C6A7CB"]
     for idx, cid in enumerate(sorted(cluster_ids)):
+        # Keep cluster 4 slightly lighter for readability in dense overlays.
+
         if idx < len(base):
             palette[cid] = base[idx]
         else:
@@ -95,7 +97,13 @@ def _cluster_palette(cluster_ids: Iterable[int]) -> dict[int, str]:
     return palette
 
 
-def _plot_flow(df: pd.DataFrame, flow_name: str, out_path: Path, max_flights_per_cluster: int) -> None:
+def _plot_flow(
+    df: pd.DataFrame,
+    flow_name: str,
+    out_path: Path,
+    max_flights_per_cluster: int,
+    include_noise: bool = True,
+) -> None:
     cluster_ids = sorted(df["cluster_id"].unique())
     noise_color = "#B0B0B0"
     if -1 in cluster_ids:
@@ -106,16 +114,17 @@ def _plot_flow(df: pd.DataFrame, flow_name: str, out_path: Path, max_flights_per
     fig, ax = plt.subplots(figsize=(10, 8))
 
     # Plot noise first in gray so clusters stand out.
-    noise_df = df[df["cluster_id"] == -1]
-    for _, flight in noise_df.groupby("flight_id"):
-        flight = flight.sort_values("step")
-        ax.plot(
-            flight["longitude"],
-            flight["latitude"],
-            color=noise_color,
-            alpha=0.2,
-            lw=0.6,
-        )
+    noise_df = df[df["cluster_id"] == -1] if include_noise else pd.DataFrame(columns=df.columns)
+    if include_noise:
+        for _, flight in noise_df.groupby("flight_id"):
+            flight = flight.sort_values("step")
+            ax.plot(
+                flight["longitude"],
+                flight["latitude"],
+                color=noise_color,
+                alpha=0.2,
+                lw=0.6,
+            )
 
     for cid in cluster_ids:
         subset = df[df["cluster_id"] == cid]
@@ -159,8 +168,13 @@ def main() -> None:
     parser.add_argument("--preprocessed", default=None, help="Override preprocessed CSV path")
     parser.add_argument("--flows", nargs="+", required=True, help="Flows like Start_09L")
     parser.add_argument("--max-flights-per-cluster", type=int, default=200)
-    parser.add_argument("--min-points-per-flight", type=int, default=20)
+    parser.add_argument("--min-points-per-flight", type=int, default=40)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--exclude-noise",
+        action="store_true",
+        help="Exclude noise flights (cluster_id = -1) from the plot.",
+    )
     args = parser.parse_args()
 
     exp_dir = Path(args.output_root) / args.experiment
@@ -186,8 +200,9 @@ def main() -> None:
             print(f"No labels found for flow {flow_name}; skipping.")
             continue
 
-        labels["flight_id"] = labels["flight_id"].astype(int)
-        labels["cluster_id"] = labels["cluster_id"].astype(int)
+        labels = labels.copy()
+        labels.loc[:, "flight_id"] = labels["flight_id"].astype(int)
+        labels.loc[:, "cluster_id"] = labels["cluster_id"].astype(int)
         sampled_ids = _sample_flight_ids(labels, args.max_flights_per_cluster, args.seed)
         df = _read_preprocessed(preprocessed_path, sampled_ids)
         if df.empty:
@@ -196,6 +211,11 @@ def main() -> None:
 
         df = df.merge(labels[["flight_id", "cluster_id"]], on="flight_id", how="left")
         df = df[df["cluster_id"].notna()]
+        if args.exclude_noise:
+            df = df[df["cluster_id"] != -1]
+            if df.empty:
+                print(f"Flow {flow_name}: only noise flights present; skipping due to --exclude-noise.")
+                continue
 
         if args.min_points_per_flight > 1:
             counts = df.groupby("flight_id").size()
@@ -208,8 +228,15 @@ def main() -> None:
                 )
                 continue
 
-        out_path = graphs_dir / f"clusters_{flow_name}_latlon.png"
-        _plot_flow(df, flow_name, out_path, args.max_flights_per_cluster)
+        suffix = "_no_noise" if args.exclude_noise else ""
+        out_path = graphs_dir / f"clusters_{flow_name}_latlon{suffix}.png"
+        _plot_flow(
+            df,
+            flow_name,
+            out_path,
+            args.max_flights_per_cluster,
+            include_noise=not args.exclude_noise,
+        )
         print(f"Saved {out_path}")
 
 
