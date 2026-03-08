@@ -91,3 +91,47 @@ L_{\mathrm{eq},w} = 10 \log_{10}!\left(\frac{t_0}{T_0}\sum_{i=1}^{N} g_i \cdot 1
 ]
 
 Where (L_{E,i}) is the single‑event exposure level, (g_i) is the time‑of‑day weight, (T_0) is the reference period, and (t_0) is the time basis used for normalization
+
+## 2026-02-18
+- Updated `jobs/run_experiment_grid_061_070_frechet.job` to be self-contained (no external parameters required at submit time).
+- Fixed Slurm logging behavior for the 061-070 Frechet job by removing runtime log-folder creation that caused permission errors in spool paths.
+- Standardized the Frechet-grid job flow to run from the cloned project root under `~/Clustering/psychic-broccoli`.
+- Updated `scripts/plot_exp_latlon_flows.py` with `--exclude-noise` to generate cluster maps without `cluster_id = -1` flights.
+- Added no-noise output naming in flow plots: `clusters_<flow>_latlon_no_noise.png`.
+
+## 2026-02-19
+- Added `scripts/eda_unique_matched_trajectories.py` to compute repetition-aware unique trajectory counts directly from `matched_trajectories/matched_trajs_*.csv`.
+- Script outputs summary and metadata breakdowns for unique flights after MP repetition deduplication:
+  - operation (`A/D`), runway, flow (`A/D + Runway`), and aircraft type percentages.
+- Expanded matched-trajectory EDA outputs with complete CSV breakdowns:
+  - `unique_flights_overview.csv`
+  - `unique_flights_by_operation_runway.csv`
+  - `unique_flights_by_operation_aircraft_type.csv`
+  - `unique_flights_by_runway_aircraft_type.csv`
+  - `unique_flights_output_index.csv`
+
+## 2026-02-20
+- Integrated library-based LCSS distance using `lcsspy` in:
+  - `distance_metrics.py` (1D wrapper + 2D dual-channel trajectory mapping)
+  - `clustering/distances.py` (dense precomputed LCSS matrix path + cache compatibility)
+- Updated experiment runner for LCSS workflows:
+  - New `distance_metric: lcss` handling.
+  - Deterministic sample-for-fit support (`clustering.sample_for_fit`) with sample-only mode.
+  - Added flow metadata fields to metrics/logs:
+    - `n_flights_total_flow`
+    - `n_flights_used_for_fit`
+    - `fit_sampling_mode`
+    - LCSS params used.
+  - Added LCSS+KMeans path via deterministic classical MDS embedding.
+- Updated `scripts/run_experiment_grid.py` to pass `sample_for_fit` overrides from experiment grid entries.
+- Repurposed `EXP058`-`EXP070` in `experiments/experiment_grid_051_070_dtw_frechet.yaml`:
+  - `EXP058`-`EXP068`: LCSS block (HDBSCAN/OPTICS/KMeans-MDS).
+  - `EXP069`-`EXP070`: RDP dataset checks (`Euclidean`, `DTW`) using `preprocessed_12`.
+- Updated `config/preprocess_grid.yaml`:
+  - `preprocessed_12` now configured as RDP variant (`rdp_enabled=true`, `rdp_epsilon_m=50`, `rdp_min_points=10`).
+- Updated dependencies:
+  - Added `lcsspy` to `requirements.txt`.
+- Updated registry:
+  - Refreshed `thesis/docs/experiments_registry.md` with new EXP058-EXP070 definitions.
+
+

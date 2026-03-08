@@ -119,11 +119,17 @@ variants:
   - preprocessed_id: 12
     preprocessing:
       resampling:
-        enabled: false
-        method: "none"
+        enabled: true
+        n_points: 50
+        method: "time"
       smoothing:
         enabled: false
         method: "none"
+      filter:
+        simplify:
+          rdp_enabled: true
+          rdp_epsilon_m: 50
+          rdp_min_points: 10
 
   - preprocessed_id: 13
     preprocessing:

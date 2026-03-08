@@ -51,7 +51,16 @@ preprocessing:
 
 clustering:
   method: "optics"
-  distance_metric: "euclidean"  # options: euclidean, dtw, frechet
+  distance_metric: "euclidean"  # options: euclidean, dtw, frechet, lcss
+  distance_params:
+    lcss_epsilon_m: 300.0
+    lcss_delta_alpha: 0.10
+    lcss_normalization: "min_len"
+  sample_for_fit:
+    enabled: false
+    max_flights_per_flow: 1200
+    random_state: 11
+    mode: "sample_only"
   evaluation:
     include_noise: false
   optics:
