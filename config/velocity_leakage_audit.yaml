@@ -1,0 +1,31 @@
+# Canonical config location for scripts/velocity_leakage_audit.py
+
+raw_path: "output/preprocessed/preprocessed_11.csv"
+
+resampled_paths:
+  - L: 40
+    path: "output/preprocessed/preprocessed_1.csv"
+  - L: 60
+    path: "output/preprocessed/preprocessed_2.csv"
+  - L: 70
+    path: "output/preprocessed/preprocessed_8.csv"
+
+dims: null  # null -> infer (2 if only x,y; 3 if z available)
+
+clustering:
+  method: "kmeans"  # one of: kmeans, agglomerative, hdbscan_if_available
+  k: 6
+  random_state: 11
+  standardize: true
+  hdbscan:
+    min_cluster_size: 10
+    min_samples: 5
+    allow_single_cluster: false
+
+sampling:
+  raw_target_L: "all"   # one of: 40, 60, 70, [40,60], or "all"
+  interpolation: "linear"
+
+metrics:
+  pairs_sample: 50000
+  eps: 1e-8
