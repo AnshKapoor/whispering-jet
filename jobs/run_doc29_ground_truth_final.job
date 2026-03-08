@@ -1,0 +1,56 @@
+#!/bin/bash -l
+#
+# ========= Phoenix / Slurm: Final Doc29 Ground Truth =========
+# =============================================================
+
+#SBATCH --job-name=doc29_gt_final
+#SBATCH --partition=standard
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=24:00:00
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=a.kapoor@tu-braunschweig.de
+
+set -eo pipefail
+umask 027
+
+echo "[info] job=$SLURM_JOB_NAME id=$SLURM_JOB_ID node=$SLURM_JOB_NODELIST"
+echo "[info] part=$SLURM_JOB_PARTITION cpus=$SLURM_CPUS_PER_TASK mem=$SLURM_MEM_PER_NODE"
+
+# Usage:
+#   sbatch jobs/run_doc29_ground_truth_final.job
+#
+# Optional override:
+#   sbatch --export=PREPROCESSED=output/preprocessed/preprocessed_1.csv,OUTDIR=noise_simulation/results_ground_truth/preprocessed_1_final,BATCH=1000 jobs/run_doc29_ground_truth_final.job
+
+PREPROCESSED=${PREPROCESSED:-output/preprocessed/preprocessed_1.csv}
+OUTDIR=${OUTDIR:-noise_simulation/results_ground_truth/preprocessed_1_final}
+BATCH=${BATCH:-1000}
+
+cd "${SLURM_SUBMIT_DIR:-$PWD}"
+
+module purge
+module load lib/openssl/latest
+module load python/3.9.7
+
+source ~/venvs/psychic/bin/activate
+
+which python
+python --version
+
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+
+mkdir -p logs
+
+srun python noise_simulation/run_doc29_ground_truth.py \
+  --preprocessed "${PREPROCESSED}" \
+  --matched-dir matched_trajectories \
+  --output-root "${OUTDIR}" \
+  --batch-size "${BATCH}"
