@@ -214,12 +214,16 @@ def _add_cumulative(
     Returns:
       DataFrame with columns: x, y, z, energy
     """
-    cols = ["x", "y", "z", "cumulative_res"]
-    if not set(cols).issubset(new.columns):
-        raise ValueError("Doc29 output missing required columns: x, y, z, cumulative_res")
-    new = new[cols].copy()
-    new["energy"] = np.power(10.0, new["cumulative_res"].to_numpy() / 10.0)
-    new = new.drop(columns=["cumulative_res"])
+    key_cols = ["x", "y", "z"]
+    if "energy" in new.columns and set(key_cols).issubset(new.columns):
+        new = new[key_cols + ["energy"]].copy()
+    else:
+        cols = ["x", "y", "z", "cumulative_res"]
+        if not set(cols).issubset(new.columns):
+            raise ValueError("Doc29 output missing required columns: x, y, z, cumulative_res")
+        new = new[cols].copy()
+        new["energy"] = np.power(10.0, new["cumulative_res"].to_numpy() / 10.0)
+        new = new.drop(columns=["cumulative_res"])
     if accum is None:
         return new
 
