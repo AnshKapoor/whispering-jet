@@ -3,6 +3,7 @@
 Primary DTW/Frechet implementations use external libraries:
 - dtw-python (`dtw` package)
 - frechetdist (`frechetdist` package)
+- lcsspy (`lcsspy` package)
 
 NumPy fallbacks are kept for robustness when optional libs are unavailable.
 Trajectories are expected as numpy arrays shaped (T, D) with D in {2, 3}.
@@ -26,6 +27,11 @@ try:
     from frechetdist import frdist as _frechetdist
 except Exception:  # pragma: no cover - depends on environment
     _frechetdist = None
+
+try:
+    from lcsspy import lcss as _lcsspy
+except Exception:  # pragma: no cover - depends on environment
+    _lcsspy = None
 
 Trajectory = np.ndarray  # shape (T, D), D = 2 or 3
 DistanceFn = Callable[[Trajectory, Trajectory], float]
@@ -131,6 +137,71 @@ def discrete_frechet_distance(traj1: Trajectory, traj2: Trajectory) -> float:
     return float(ca[t1 - 1, t2 - 1])
 
 
+def lcss_similarity_1d(
+    ts1: np.ndarray,
+    ts2: np.ndarray,
+    epsilon: float,
+    delta: int,
+    normalization: str = "min_len",
+) -> float:
+    """Compute normalized 1D LCSS similarity via lcsspy."""
+
+    if _lcsspy is None:
+        raise ImportError("lcsspy is required for LCSS distance. Install via pip install lcsspy")
+
+    norm = str(normalization).strip().lower()
+    if norm != "min_len":
+        raise ValueError("Unsupported lcss_normalization. lcsspy integration supports only 'min_len'.")
+    if epsilon < 0:
+        raise ValueError("epsilon must be non-negative.")
+    if delta < 0:
+        raise ValueError("delta must be non-negative.")
+
+    ts1 = np.asarray(ts1, dtype=float).ravel()
+    ts2 = np.asarray(ts2, dtype=float).ravel()
+    result = _lcsspy.discrete_lcss(ts1, ts2, epsilon=float(epsilon), delta=int(delta), plot=False)
+    sim = float(result.lcss_measure)
+    return float(np.clip(sim, 0.0, 1.0))
+
+
+def _relative_lcss_delta(len_i: int, len_j: int, delta_alpha: float) -> int:
+    """Return relative delta_ij = ceil(alpha * min(len_i, len_j))."""
+
+    if delta_alpha < 0:
+        raise ValueError("lcss_delta_alpha must be non-negative.")
+    base = int(min(len_i, len_j))
+    if base <= 1:
+        return 1
+    return max(1, int(np.ceil(float(delta_alpha) * base)))
+
+
+def lcss_trajectory_distance(
+    traj1: Trajectory,
+    traj2: Trajectory,
+    epsilon_m: float = 300.0,
+    delta_alpha: float = 0.10,
+    normalization: str = "min_len",
+) -> float:
+    """
+    Compute 2D trajectory distance from dual-channel LCSS similarity.
+
+    s_x = LCSS(x_i, x_j), s_y = LCSS(y_i, y_j), s = (s_x + s_y)/2, d = 1 - s
+    """
+
+    traj1, traj2 = _validate_trajectories(traj1, traj2)
+    if traj1.shape[1] < 2 or traj2.shape[1] < 2:
+        raise ValueError("LCSS trajectory distance requires at least 2D coordinates (x,y).")
+
+    x1, y1 = traj1[:, 0], traj1[:, 1]
+    x2, y2 = traj2[:, 0], traj2[:, 1]
+    delta = _relative_lcss_delta(len(x1), len(x2), float(delta_alpha))
+
+    s_x = lcss_similarity_1d(x1, x2, epsilon=float(epsilon_m), delta=delta, normalization=normalization)
+    s_y = lcss_similarity_1d(y1, y2, epsilon=float(epsilon_m), delta=delta, normalization=normalization)
+    sim = 0.5 * (s_x + s_y)
+    return float(np.clip(1.0 - sim, 0.0, 1.0))
+
+
 def get_trajectory_distance_fn(name: str) -> DistanceFn:
     """Return the distance function for a given metric name."""
 
@@ -141,6 +212,8 @@ def get_trajectory_distance_fn(name: str) -> DistanceFn:
         return dtw_distance
     if normalized == "frechet":
         return discrete_frechet_distance
+    if normalized == "lcss":
+        return lcss_trajectory_distance
     raise ValueError(f"Unsupported distance metric: {name}")
 
 
@@ -161,7 +234,7 @@ def pairwise_distance_matrix(
     total_pairs = n * (n - 1) // 2
     log_every = int(log_every) if log_every else None
 
-    if metric in {"dtw", "frechet"}:
+    if metric in {"dtw", "frechet", "lcss"}:
         logger.info(
             "Computing %s distance matrix for %d trajectories (%d pairs).",
             metric,
@@ -180,12 +253,14 @@ def pairwise_distance_matrix(
                 d = dtw_distance(trajectories[i], trajectories[j], window_size=dtw_window_size)
             elif metric == "frechet":
                 d = discrete_frechet_distance(trajectories[i], trajectories[j])
+            elif metric == "lcss":
+                d = lcss_trajectory_distance(trajectories[i], trajectories[j])
             elif metric == "euclidean":
                 d = euclidean_distance(trajectories[i], trajectories[j])
             else:
                 raise ValueError(f"Unsupported distance metric: {metric}")
             mat[i, j] = mat[j, i] = d
-            if metric in {"dtw", "frechet"}:
+            if metric in {"dtw", "frechet", "lcss"}:
                 pairs_done += 1
                 if log_every and pairs_done % log_every == 0:
                     elapsed = time.perf_counter() - start
@@ -201,7 +276,7 @@ def pairwise_distance_matrix(
                         eta,
                     )
 
-    if metric in {"dtw", "frechet"}:
+    if metric in {"dtw", "frechet", "lcss"}:
         elapsed = time.perf_counter() - start
         logger.info("Computed %s distance matrix in %.1fs.", metric, elapsed)
     return mat
@@ -364,5 +439,6 @@ if __name__ == "__main__":
     print("Euclidean:", euclidean_distance(traj1, traj2))
     print("DTW:", dtw_distance(traj1, traj2))
     print("Frechet:", discrete_frechet_distance(traj1, traj2))
+    print("LCSS:", lcss_trajectory_distance(traj1, traj2))
 
 

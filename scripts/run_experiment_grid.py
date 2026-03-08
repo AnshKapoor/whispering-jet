@@ -99,12 +99,18 @@ def main(grid_path: Path) -> None:
             cfg["clustering"]["distance_metric"] = distance_metric
             cfg["clustering"][method] = params
             cfg["clustering"]["distance_params"] = copy.deepcopy(distance_params)
+            if "sample_for_fit" in exp:
+                cfg["clustering"]["sample_for_fit"] = copy.deepcopy(exp["sample_for_fit"])
             grid_flows = grid.get("flows")
             if grid_flows:
                 cfg["flows"] = copy.deepcopy(grid_flows)
             grid_features = grid.get("features")
             if grid_features:
                 cfg["features"] = copy.deepcopy(grid_features)
+            exp_features = exp.get("features")
+            if exp_features:
+                cfg.setdefault("features", {})
+                cfg["features"].update(copy.deepcopy(exp_features))
             exp_input = exp.get("input")
             if exp_input:
                 cfg.setdefault("input", {}).update(copy.deepcopy(exp_input))
