@@ -166,3 +166,90 @@ def test_runner_logs_effective_resampling_points(tmp_path, monkeypatch):
     log_text = (tmp_path / "out" / "experiments" / "EXPLOGPTS" / "experiment_log.txt").read_text(encoding="utf-8")
     assert "Resampling n_points: 2" in log_text
     assert "config=50 but effective=2" in log_text
+
+
+def test_runner_lcss_sample_for_fit_metadata(tmp_path, monkeypatch):
+    csv_path = tmp_path / "preprocessed.csv"
+    rows = []
+    for fid in [1, 2, 3, 4, 5]:
+        rows.append(
+            {
+                "flight_id": fid,
+                "step": 0,
+                "x_utm": float(fid),
+                "y_utm": float(fid),
+                "A/D": "Landung",
+                "Runway": "09L",
+            }
+        )
+        rows.append(
+            {
+                "flight_id": fid,
+                "step": 1,
+                "x_utm": float(fid) + 1.0,
+                "y_utm": float(fid) + 1.0,
+                "A/D": "Landung",
+                "Runway": "09L",
+            }
+        )
+    _write_preprocessed_csv(csv_path, rows)
+
+    class FakeKMeans:
+        supports_precomputed = False
+        last_model = None
+
+        def fit_predict(self, X, **kwargs):
+            n = X.shape[0]
+            base = np.array([0, 1, 0], dtype=int)
+            if n <= 3:
+                return base[:n]
+            return np.resize(base, n)
+
+    def fake_pairwise_distance_matrix(*args, **kwargs):
+        trajs = args[0]
+        n = len(trajs)
+        D = np.full((n, n), 2.0, dtype=float)
+        np.fill_diagonal(D, 0.0)
+        return D
+
+    monkeypatch.setattr("experiments.runner.get_clusterer", lambda method: FakeKMeans())
+    monkeypatch.setattr("experiments.runner.pairwise_distance_matrix", fake_pairwise_distance_matrix)
+
+    cfg = {
+        "clustering": {
+            "method": "kmeans",
+            "distance_metric": "lcss",
+            "kmeans": {"n_clusters": 2, "random_state": 42, "n_init": 1},
+            "distance_params": {
+                "lcss_epsilon_m": 300.0,
+                "lcss_delta_alpha": 0.10,
+                "lcss_normalization": "min_len",
+                "mds_n_components": 2,
+            },
+            "sample_for_fit": {
+                "enabled": True,
+                "max_flights_per_flow": 3,
+                "random_state": 11,
+                "mode": "sample_only",
+            },
+            "evaluation": {"include_noise": False},
+        },
+        "flows": {"flow_keys": ["A/D", "Runway"], "include": []},
+        "features": {"vector_cols": ["x_utm", "y_utm"]},
+        "input": {"preprocessed_csv": str(csv_path)},
+        "preprocessing": {"resampling": {"n_points": 2}},
+        "output": {"dir": str(tmp_path / "out"), "experiment_name": "EXPLCSSSAMPLE"},
+    }
+    cfg_path = tmp_path / "cfg_lcss.yaml"
+    cfg_path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+
+    run_experiment(cfg_path)
+
+    exp_dir = tmp_path / "out" / "experiments" / "EXPLCSSSAMPLE"
+    labels = pd.read_csv(exp_dir / "labels_Landung_09L.csv")
+    assert len(labels) == 3
+
+    metrics = pd.read_csv(exp_dir / "metrics_by_flow.csv")
+    assert int(metrics.loc[0, "n_flights_total_flow"]) == 5
+    assert int(metrics.loc[0, "n_flights_used_for_fit"]) == 3
+    assert metrics.loc[0, "fit_sampling_mode"] == "sample_only"

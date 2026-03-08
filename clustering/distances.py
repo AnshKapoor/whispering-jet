@@ -13,8 +13,9 @@ import numpy as np
 from scipy.spatial.distance import cdist
 from scipy.sparse import coo_matrix, load_npz, save_npz
 from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import sort_graph_by_row_values
 
-from distance_metrics import dtw_banded, frechet_discrete, lb_keogh, rdp
+from distance_metrics import dtw_banded, frechet_discrete, lb_keogh, lcss_trajectory_distance, rdp
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 def build_feature_matrix(
     flights_df,
     vector_cols: Sequence[str],
+    allow_ragged: bool = False,
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     """
     Returns (X, trajectories) where X is (n_flights, n_features).
@@ -42,7 +44,15 @@ def build_feature_matrix(
                 traj_coords.append((coords[0], coords[1]))
         feature_rows.append(vec)
         trajs.append(np.array(traj_coords, dtype=float))
-    X = np.array(feature_rows, dtype=float)
+    if allow_ragged:
+        try:
+            X = np.array(feature_rows, dtype=float)
+        except ValueError:
+            # Variable-length flights (e.g. non-resampled inputs) are valid for
+            # DTW/Frechet/LCSS precomputed distances; keep rows aligned as object arrays.
+            X = np.array([np.asarray(v, dtype=float) for v in feature_rows], dtype=object)
+    else:
+        X = np.array(feature_rows, dtype=float)
     return X, trajs
 
 
@@ -99,23 +109,71 @@ def _hash_config(flow_name: str, metric: str, params: dict, flight_ids: Iterable
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
+def _resample_traj_for_embedding(traj: np.ndarray, n_points: int) -> np.ndarray:
+    """
+    Build a fixed-length 2D representation for kNN candidate selection.
+    This keeps sparse-graph construction working even when trajectories
+    have variable lengths (e.g. non-resampled preprocessing variants).
+    """
+    arr = np.asarray(traj, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] < 2 or arr.shape[0] == 0:
+        return np.zeros((n_points, 2), dtype=float)
+    xy = arr[:, :2]
+    if xy.shape[0] == 1:
+        return np.repeat(xy, n_points, axis=0)
+    src = np.linspace(0.0, 1.0, num=xy.shape[0])
+    dst = np.linspace(0.0, 1.0, num=n_points)
+    x = np.interp(dst, src, xy[:, 0])
+    y = np.interp(dst, src, xy[:, 1])
+    return np.column_stack([x, y])
+
+
+def _trajectory_knn_embedding(
+    trajectories: Sequence[np.ndarray],
+    params: dict,
+) -> np.ndarray:
+    """
+    Return a fixed-width embedding used only to build candidate kNN edges.
+    """
+    mode = str(params.get("knn_embedding", "auto")).lower()
+    if mode == "flatten":
+        return np.stack([np.asarray(t, dtype=float).ravel() for t in trajectories], axis=0)
+    if mode == "resample":
+        m = int(params.get("knn_embed_points", 16))
+        return np.stack(
+            [_resample_traj_for_embedding(np.asarray(t, dtype=float), m).ravel() for t in trajectories],
+            axis=0,
+        )
+    # auto: try flatten (fast when equal-length), fallback to resampled embedding.
+    try:
+        return np.stack([np.asarray(t, dtype=float).ravel() for t in trajectories], axis=0)
+    except ValueError:
+        m = int(params.get("knn_embed_points", 16))
+        return np.stack(
+            [_resample_traj_for_embedding(np.asarray(t, dtype=float), m).ravel() for t in trajectories],
+            axis=0,
+        )
+
+
 def pairwise_distance_matrix(
     trajectories: Sequence[np.ndarray] | np.ndarray,
     metric: str = "euclidean",
     cache_dir: Path | None = None,
     flow_name: str | None = None,
     params: dict | None = None,
+    cache_ids: Iterable | None = None,
 ):
     """
     Compute symmetric pairwise distance matrix (dense or sparse).
-    Supported metrics: euclidean, dtw, frechet.
+    Supported metrics: euclidean, dtw, frechet, lcss.
     """
 
     metric = metric.lower()
     params = params or {}
     if cache_dir and flow_name:
         cache_dir.mkdir(parents=True, exist_ok=True)
-        key = _hash_config(flow_name, metric, params, range(len(trajectories)))
+        hash_ids = cache_ids if cache_ids is not None else range(len(trajectories))
+        key = _hash_config(flow_name, metric, params, hash_ids)
         if metric in {"dtw", "frechet"}:
             cache_path = cache_dir / f"dist_{key}.npz"
             if cache_path.exists():
@@ -145,10 +203,16 @@ def pairwise_distance_matrix(
             return coo_matrix((n, n)).tocsr()
 
         k = int(params.get("candidate_k", params.get("knn_k", 30)))
+        min_required_neighbors = int(params.get("min_required_neighbors", 1))
+        if min_required_neighbors > 1:
+            # Keep precomputed sparse graph compatible with neighbor-based methods
+            # (e.g. OPTICS min_samples).
+            k = max(k, min_required_neighbors)
         k = max(1, min(k, n - 1))
         n_jobs = params.get("n_jobs")
+        Z = _trajectory_knn_embedding(trajectories, params)
         edges, knn_dists = _build_knn_edges(
-            np.stack([np.asarray(t, dtype=float).ravel() for t in trajectories], axis=0),
+            Z,
             k=k,
             n_jobs=n_jobs,
         )
@@ -183,8 +247,13 @@ def pairwise_distance_matrix(
             for i, j in batch_edges:
                 if metric == "dtw":
                     if use_lb and tau is not None and lb_radius is not None:
-                        if lb_keogh(trajectories[i], trajectories[j], int(lb_radius)) > (tau * tau):
-                            continue
+                        try:
+                            if lb_keogh(trajectories[i], trajectories[j], int(lb_radius)) > (tau * tau):
+                                continue
+                        except Exception:
+                            # Variable-length trajectories can break LB-Keogh envelope
+                            # construction at sequence boundaries; skip pruning in that case.
+                            pass
                     d = dtw_banded(trajectories[i], trajectories[j], w=int(w), tau=tau)
                 else:
                     d = frechet_discrete(simplified[i], simplified[j], tau=tau)
@@ -216,12 +285,64 @@ def pairwise_distance_matrix(
             cols.extend(range(n))
             data.extend([0.0] * n)
         D = coo_matrix((data, (rows, cols)), shape=(n, n)).tocsr()
+        try:
+            D = sort_graph_by_row_values(D, warn_when_not_sorted=False)
+        except Exception:
+            # Older sklearn builds may not expose this helper.
+            pass
         logger.info(
             "Computed %s sparse distances in %.1fs (edges kept=%d).",
             metric,
             time.perf_counter() - start,
             len(results),
         )
+    elif metric == "lcss":
+        if isinstance(trajectories, np.ndarray):
+            raise ValueError("lcss distance requires a sequence of (T,D) trajectories.")
+        n = len(trajectories)
+        D = np.zeros((n, n), dtype=float)
+        if n <= 1:
+            return D
+
+        epsilon_m = float(params.get("lcss_epsilon_m", 300.0))
+        delta_alpha = float(params.get("lcss_delta_alpha", 0.10))
+        normalization = str(params.get("lcss_normalization", "min_len"))
+        log_every = int(params.get("log_every", 0))
+
+        logger.info(
+            "Computing lcss dense distances (n=%d, epsilon=%.3f, delta_alpha=%.3f, normalization=%s).",
+            n,
+            epsilon_m,
+            delta_alpha,
+            normalization,
+        )
+        total_pairs = n * (n - 1) // 2
+        pair_idx = 0
+        start = time.perf_counter()
+        for i in range(n):
+            D[i, i] = 0.0
+            for j in range(i + 1, n):
+                d = lcss_trajectory_distance(
+                    np.asarray(trajectories[i], dtype=float),
+                    np.asarray(trajectories[j], dtype=float),
+                    epsilon_m=epsilon_m,
+                    delta_alpha=delta_alpha,
+                    normalization=normalization,
+                )
+                D[i, j] = D[j, i] = float(d)
+                pair_idx += 1
+                if log_every > 0 and pair_idx % log_every == 0:
+                    elapsed = time.perf_counter() - start
+                    rate = pair_idx / elapsed if elapsed > 0 else 0.0
+                    logger.info(
+                        "LCSS progress: %d/%d pairs (%.1f%%), %.2f pairs/s",
+                        pair_idx,
+                        total_pairs,
+                        (100.0 * pair_idx / total_pairs) if total_pairs else 100.0,
+                        rate,
+                    )
+        np.fill_diagonal(D, 0.0)
+        logger.info("Computed lcss dense matrix in %.1fs.", time.perf_counter() - start)
     else:
         raise ValueError(f"Unsupported distance metric: {metric}")
 
