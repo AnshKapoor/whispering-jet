@@ -12,3 +12,4 @@ traffic
 scikit-learn
 dtw-python
 frechetdist
+lcsspy
