@@ -35,6 +35,7 @@ noise_simulation/**
 # Generated noise_simulation outputs
 noise_simulation/__pycache__/
 noise_simulation/results/
+noise_simulation/generated_markdowns/
 noise_simulation/doc-29-implementation/__pycache__/
 noise_simulation/doc-29-implementation/Groundtracks/
 noise_simulation/doc-29-implementation/Results_Python/
