@@ -5,6 +5,10 @@ Usage:
     --flows Start_09L Start_09R Start_27L ^
     --max-flights-per-cluster 120
 
+  python scripts/plot_exp_latlon_flows.py EXP023 ^
+    --flows Landung_09L ^
+    --cluster-ids 0
+
 Outputs:
   output/experiments/<experiment>/graphs/clustered_trajectories_<flow>.png
 """
@@ -167,6 +171,13 @@ def main() -> None:
     parser.add_argument("--output-root", default="output/experiments", help="Root experiments directory")
     parser.add_argument("--preprocessed", default=None, help="Override preprocessed CSV path")
     parser.add_argument("--flows", nargs="+", required=True, help="Flows like Start_09L")
+    parser.add_argument(
+        "--cluster-ids",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Optional cluster IDs to plot. Example: --cluster-ids 0 or --cluster-ids 0 1 -1",
+    )
     parser.add_argument("--max-flights-per-cluster", type=int, default=200)
     parser.add_argument("--min-points-per-flight", type=int, default=40)
     parser.add_argument("--seed", type=int, default=42)
@@ -203,6 +214,11 @@ def main() -> None:
         labels = labels.copy()
         labels.loc[:, "flight_id"] = labels["flight_id"].astype(int)
         labels.loc[:, "cluster_id"] = labels["cluster_id"].astype(int)
+        if args.cluster_ids is not None:
+            labels = labels[labels["cluster_id"].isin(args.cluster_ids)].copy()
+            if labels.empty:
+                print(f"Flow {flow_name}: no flights found for cluster filter {args.cluster_ids}; skipping.")
+                continue
         sampled_ids = _sample_flight_ids(labels, args.max_flights_per_cluster, args.seed)
         df = _read_preprocessed(preprocessed_path, sampled_ids)
         if df.empty:
@@ -228,7 +244,15 @@ def main() -> None:
                 )
                 continue
 
-        suffix = "_no_noise" if args.exclude_noise else ""
+        suffix_parts: list[str] = []
+        if args.cluster_ids is not None:
+            if len(args.cluster_ids) == 1:
+                suffix_parts.append(f"cluster_{args.cluster_ids[0]}")
+            else:
+                suffix_parts.append("selected_clusters")
+        if args.exclude_noise:
+            suffix_parts.append("no_noise")
+        suffix = f"_{'_'.join(suffix_parts)}" if suffix_parts else ""
         out_path = graphs_dir / f"clusters_{flow_name}_latlon{suffix}.png"
         _plot_flow(
             df,

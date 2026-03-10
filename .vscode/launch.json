@@ -20,7 +20,7 @@
             "program": "${workspaceFolder}/scripts/run_preprocess_grid.py",
             "args": [
                 "--grid",
-                "config/preprocess_grid.yaml"
+                "config/preprocess_grid_corrected_1_10.yaml"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -38,13 +38,75 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Run Experiment Grid",
+            "name": "Grid: Run Preprocess Grid (Only 11-13 Raw)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
+            "program": "${workspaceFolder}/scripts/run_preprocess_grid.py",
             "args": [
                 "--grid",
-                "experiments/experiment_grid.yaml"
+                "config/preprocess_grid.yaml",
+                "--only-ids",
+                "11,12,13"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Grid: Run Preprocess Grid (Corrected 1-10)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_preprocess_grid.py",
+            "args": [
+                "--grid",
+                "config/preprocess_grid_corrected_1_10.yaml"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Grid: Check Preprocessed Status",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/check_preprocessed_grid_status.py",
+            "args": [
+                "--grid",
+                "config/preprocess_grid.yaml"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Grid: Check Preprocessed Status (Corrected 1-10)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/check_preprocessed_grid_status.py",
+            "args": [
+                "--grid",
+                "config/preprocess_grid_corrected_1_10.yaml",
+                "--preprocessed-dir",
+                "output_corrected/preprocessed",
+                "--out-csv",
+                "output/eda/preprocessed_status/preprocess_grid_corrected_status.csv"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDA: Check Repeated Flights (Preprocessed Existing)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/check_preprocessed_repetitions.py",
+            "args": [
+                "--preprocessed-dir",
+                "output/preprocessed",
+                "--matched-glob",
+                "matched_trajectories/matched_trajs_*.csv",
+                "--id-start",
+                "1",
+                "--id-end",
+                "10",
+                "--window-minutes",
+                "10"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -56,7 +118,7 @@
             "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
             "args": [
                 "--grid",
-                "${input:experimentGridPath}"
+                "experiments/${input:experimentGridFile}"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -82,6 +144,20 @@
                 "${input:experimentName}",
                 "--arrival-scheme",
                 "median"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Plot Backbone Tracks (Doc29 7-Track)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/plot_backbone_tracks.py",
+            "args": [
+                "--experiment",
+                "${input:experimentName}",
+                "--arrival-scheme",
+                "seven"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -116,9 +192,35 @@
                 "Start_09R",
                 "Start_27L",
                 "Start_27R",
+                "Landung_27L",
+                "Landung_27R",
+                "Landung_09L",
+                "Landung_09R",
                 "--max-flights-per-cluster",
-                "200",
-                "--include-noise"
+                "300"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Plot: Clustered Flows (No Noise)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/plot_exp_latlon_flows.py",
+            "args": [
+                "${input:experimentName}",
+                "--flows",
+                "Start_09L",
+                "Start_09R",
+                "Start_27L",
+                "Start_27R",
+                "Landung_27L",
+                "Landung_27R",
+                "Landung_09L",
+                "Landung_09R",
+                "--max-flights-per-cluster",
+                "250",
+                "--exclude-noise"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -194,6 +296,22 @@
             "cwd": "${workspaceFolder}"
         },
         {
+            "name": "EDA MP Repetition Summary (Preprocessed 1-10)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/summarize_mp_repetitions.py",
+            "args": [
+                "--reports-dir",
+                "output/eda/mp_repetition_checks",
+                "--id-start",
+                "1",
+                "--id-end",
+                "10"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
             "name": "Doc29 Automation (Experiment)",
             "type": "debugpy",
             "request": "launch",
@@ -254,6 +372,12 @@
         }
     ],
     "inputs": [
+        {
+            "id": "experimentGridFile",
+            "type": "promptString",
+            "description": "Experiment grid file name inside experiments/ (e.g., experiment_grid_051_070_dtw_frechet.yaml)",
+            "default": "experiment_grid.yaml"
+        },
         {
             "id": "experimentName",
             "type": "promptString",
