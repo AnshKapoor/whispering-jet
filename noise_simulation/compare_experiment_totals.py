@@ -39,6 +39,15 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+import sys
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from noise_simulation.receiver_points import annotate_measuring_points
+
 
 def _to_energy(level_db: np.ndarray) -> np.ndarray:
     """Convert dB to linear energy."""
@@ -207,7 +216,9 @@ def main() -> None:
     category_summary.to_csv(category_summary_path, index=False)
 
     aligned_all = pd.concat(aligned_frames, ignore_index=True)
+    aligned_all = annotate_measuring_points(aligned_all)
     aligned_cols = group_cols + ["x", "y", "z", "cumulative_res_pred", "cumulative_res_gt", "abs_err", "sq_err"]
+    aligned_cols = ["measuring_point"] + aligned_cols
     aligned_path = out_dir / "category_aligned_receivers.csv"
     aligned_all[aligned_cols].to_csv(aligned_path, index=False)
 
@@ -218,7 +229,7 @@ def main() -> None:
     overall_aligned["delta"] = (
         overall_aligned["cumulative_res_pred"] - overall_aligned["cumulative_res_gt"]
     )
-    overall_aligned = overall_aligned.sort_values(["x", "y", "z"]).reset_index(drop=True)
+    overall_aligned = annotate_measuring_points(overall_aligned)
     overall_aligned_path = out_dir / "overall_aligned_9points.csv"
     overall_aligned.to_csv(overall_aligned_path, index=False)
 
