@@ -20,7 +20,7 @@
             "program": "${workspaceFolder}/scripts/run_preprocess_grid.py",
             "args": [
                 "--grid",
-                "config/preprocess_grid.yaml"
+                "config/preprocess_grid_corrected_1_10.yaml"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -38,7 +38,7 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Run Experiment Grid",
+            "name": "Grid: Run Experiment Grid 051-070 DTW/Frechet",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
@@ -92,7 +92,7 @@
             "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
             "args": [
                 "--grid",
-                "${input:experimentGridPath}"
+                "experiments/${input:experimentGridFile}"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -164,6 +164,20 @@
             "cwd": "${workspaceFolder}"
         },
         {
+            "name": "Plot Backbone Tracks (Doc29 7-Track)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/plot_backbone_tracks.py",
+            "args": [
+                "--experiment",
+                "${input:experimentName}",
+                "--arrival-scheme",
+                "seven"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
             "name": "Plot Clustered Flows (Lat/Lon)",
             "type": "debugpy",
             "request": "launch",
@@ -197,13 +211,35 @@
                 "Start_09R",
                 "Start_27L",
                 "Start_27R",
-                "Landung_09L",
-                "Landung_09R",
                 "Landung_27L",
                 "Landung_27R",
-                // "--include-noise",
+                "Landung_09L",
+                "Landung_09R",
                 "--max-flights-per-cluster",
-                "200"
+                "300"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Plot: Clustered Flows (No Noise)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/plot_exp_latlon_flows.py",
+            "args": [
+                "${input:experimentName}",
+                "--flows",
+                "Start_09L",
+                "Start_09R",
+                "Start_27L",
+                "Start_27R",
+                "Landung_27L",
+                "Landung_27R",
+                "Landung_09L",
+                "Landung_09R",
+                "--max-flights-per-cluster",
+                "250",
+                "--exclude-noise"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -422,6 +458,12 @@
         }
     ],
     "inputs": [
+        {
+            "id": "experimentGridFile",
+            "type": "promptString",
+            "description": "Experiment grid file name inside experiments/ (e.g., experiment_grid_051_070_dtw_frechet.yaml)",
+            "default": "experiment_grid.yaml"
+        },
         {
             "id": "experimentName",
             "type": "promptString",

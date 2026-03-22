@@ -252,7 +252,7 @@ experiments:
   #       pca_components: 5
   #   input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  # Active sweep: normalized x_utm, y_utm, altitude without PCA.
+  # Active sweep history: normalized x_utm, y_utm, altitude without PCA.
   # - name: "EXP070"
   #   experiment_name: "EXP070"
   #   method: "kmeans"

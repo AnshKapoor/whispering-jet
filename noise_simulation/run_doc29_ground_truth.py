@@ -54,6 +54,7 @@ from noise_simulation.automation.flight_csv import (
     write_flight_csv,
 )
 from noise_simulation.automation.groundtruth_tracks import generate_groundtruth_tracks
+from noise_simulation.receiver_points import annotate_measuring_points
 
 
 def _npd_suffix(ad: str) -> str:
@@ -414,7 +415,8 @@ def main() -> None:
             np.maximum(group_out_df["energy"].to_numpy(), 1e-12)
         )
         group_out_df = group_out_df[["x", "y", "z", "cumulative_res"]]
-        group_out_df.to_csv(group_out, sep=";", index=False)
+        group_out_df = annotate_measuring_points(group_out_df)
+        group_out_df.to_csv(group_out, index=False)
         global_accum = _add_cumulative(global_accum, group_accum)
 
         group_summaries.append(
@@ -437,7 +439,8 @@ def main() -> None:
         np.maximum(global_out_df["energy"].to_numpy(), 1e-12)
     )
     global_out_df = global_out_df[["x", "y", "z", "cumulative_res"]]
-    global_out_df.to_csv(global_out, sep=";", index=False)
+    global_out_df = annotate_measuring_points(global_out_df)
+    global_out_df.to_csv(global_out, index=False)
 
     summary = {
         "preprocessed": str(preprocessed_path),

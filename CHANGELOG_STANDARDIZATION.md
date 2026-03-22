@@ -187,3 +187,80 @@ Where (L_{E,i}) is the single‑event exposure level, (g_i) is the time‑of‑d
   - Added `lcsspy` to `requirements.txt`.
 - Updated registry:
   - Refreshed `thesis/docs/experiments_registry.md` with new EXP058-EXP070 definitions.
+
+## 2026-03-01
+- Added variable-length DTW validation support on `preprocessed_11`:
+  - enabled dense/sanitized precomputed handling for DTW/Frechet/LCSS paths where required
+  - added KMeans support over precomputed non-Euclidean distances through deterministic classical MDS embedding
+- Improved experiment logging in `experiments/runner.py`:
+  - sample vector previews
+  - effective `n_points` inference from loaded input rows
+  - clearer per-flow feature/trajectory diagnostics
+- Added corrected post-run summaries for EXP041-EXP062 under `output/eda/`.
+
+## 2026-03-03
+- Added `raw_adsb_eda.py` for thesis-oriented RAW ADS-B EDA before matching/segmentation:
+  - monthly volume and coverage
+  - temporal sampling deltas
+  - spatial footprint
+  - altitude distribution
+  - field missingness
+  - sanity checks
+- Added figure/table outputs for RAW ADS-B EDA under `output/eda/raw_adsb_eda_<timestamp>/`.
+- Added `scripts/eda_preprocessed_pca.py` for PCA variance and score analysis of preprocessed trajectories.
+- Added `scripts/export_preprocessed_kml.py` to export sampled preprocessed flows to KML with runway / measuring-point context.
+
+## 2026-03-05
+- Added `velocity_leakage_audit.py` and `scripts/velocity_leakage_diagnostic.py`:
+  - compare time-index vs arc-length representations
+  - compute ARI agreement between clustering outputs
+  - compute distance inflation ratios
+  - save report artifacts under `results/velocity_leakage_audit/<timestamp>/`
+- Added dedicated audit config/dependency support:
+  - `config/velocity_leakage_audit.yaml`
+  - local compatibility `config.yaml`
+  - `requirements_velocity_leakage_audit.txt`
+- Added `scripts/eda_unique_matched_trajectories.py` refinements and downstream CSV outputs for unique-flight summaries.
+
+## 2026-03-06
+- Extended `experiments/runner.py` to support 3D feature transforms for Euclidean clustering:
+  - `vector_cols: ["x_utm", "y_utm", "altitude"]`
+  - missing-value interpolation along trajectory step index
+  - `StandardScaler`
+  - optional PCA projection before clustering
+- Updated `scripts/run_experiment_grid.py` so per-experiment `features:` overrides are respected.
+- Added richer feature-transform logging:
+  - raw flattened sample
+  - grouped by-step sample
+  - post-imputation sample
+  - standardized sample
+  - PCA sample
+- Updated `experiments/experiment_grid_051_070_dtw_frechet.yaml`:
+  - restored PCA-based 3D Euclidean sweep for `EXP064`-`EXP069`
+  - added normalized 3D Euclidean no-PCA sweep for `EXP070`-`EXP075`
+- Updated experiment registry and preprocess registry entries to reflect the current extended experiment blocks.
+
+## 2026-03-07
+- Added `scripts/run_compare_experiment_totals_batch.py` to batch-run fair aggregate comparison over many experiment folders.
+- Added `jobs/run_doc29_ground_truth_final.job` for full-flow all-flight Doc29 ground-truth execution on Phoenix.
+- Fixed `noise_simulation/run_doc29_ground_truth.py` aggregation bug:
+  - `_add_cumulative()` now accepts both raw Doc29 outputs (`cumulative_res`) and already-accumulated energy-domain frames (`energy`)
+  - prevents failure during group-to-global accumulation
+- Added thesis result notes for Doc29 comparison blocks:
+  - `thesis/docs/noise_sim_results_exp011_020.md`
+  - `thesis/docs/noise_sim_results_exp021_050.md`
+
+## 2026-03-08
+- Cleaned repository layout without breaking legacy commands:
+  - moved canonical runnable entrypoints to `scripts/`
+  - kept compatibility wrappers at repo root for existing commands
+  - moved batch job files into `jobs/`
+  - moved root docs/artifacts into `thesis/docs/` and `thesis/exports/`
+  - archived leftover one-off root files under `legacy/root_archive/`
+- Removed obsolete `add_noise_runway_columns.py` patch workflow and its associated job.
+- Updated `README.md` to reflect canonical script/job locations and removed stale references.
+- Cleaned `.gitignore`:
+  - added ignores for `results/`, `.tmp_*.yaml`, and `.vscode/settings.json`
+  - removed malformed trailing entries.
+
+

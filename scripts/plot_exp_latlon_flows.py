@@ -5,6 +5,10 @@ Usage:
     --flows Start_09L Start_09R Start_27L ^
     --max-flights-per-cluster 120
 
+  python scripts/plot_exp_latlon_flows.py EXP023 ^
+    --flows Landung_09L ^
+    --cluster-ids 0
+
 Outputs:
   output/experiments/<experiment>/graphs/clustered_trajectories_<flow>.png
 """
@@ -102,6 +106,8 @@ def _cluster_palette(cluster_ids: Iterable[int]) -> dict[int, str]:
     ]
 
     for idx, cid in enumerate(sorted(cluster_ids)):
+        # Keep cluster 4 slightly lighter for readability in dense overlays.
+
         if idx < len(base):
             palette[cid] = base[idx]
         else:
@@ -181,6 +187,13 @@ def main() -> None:
     parser.add_argument("--output-root", default="output/experiments", help="Root experiments directory")
     parser.add_argument("--preprocessed", default=None, help="Override preprocessed CSV path")
     parser.add_argument("--flows", nargs="+", required=True, help="Flows like Start_09L")
+    parser.add_argument(
+        "--cluster-ids",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Optional cluster IDs to plot. Example: --cluster-ids 0 or --cluster-ids 0 1 -1",
+    )
     parser.add_argument("--max-flights-per-cluster", type=int, default=200)
     parser.add_argument("--min-points-per-flight", type=int, default=40)
     parser.add_argument("--seed", type=int, default=42)

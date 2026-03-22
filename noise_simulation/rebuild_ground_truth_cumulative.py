@@ -26,6 +26,15 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+import sys
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from noise_simulation.receiver_points import annotate_measuring_points
+
 
 def _add_energy(accum: Optional[pd.DataFrame], df: pd.DataFrame) -> pd.DataFrame:
     """Add cumulative_res in energy domain on (x, y, z) keys."""
@@ -46,7 +55,8 @@ def _energy_to_db(df_energy: pd.DataFrame) -> pd.DataFrame:
     """Convert energy-domain frame to x,y,z,cumulative_res."""
     out = df_energy.copy()
     out["cumulative_res"] = 10.0 * np.log10(np.maximum(out["energy"].to_numpy(), 1e-12))
-    return out[["x", "y", "z", "cumulative_res"]]
+    out = out[["x", "y", "z", "cumulative_res"]]
+    return annotate_measuring_points(out)
 
 
 def _merge_energy(accum: Optional[pd.DataFrame], new: pd.DataFrame) -> pd.DataFrame:
@@ -86,7 +96,7 @@ def main() -> None:
             continue
 
         group_out = group_dir / "group_cumulative.csv"
-        _energy_to_db(group_accum).to_csv(group_out, sep=";", index=False)
+        _energy_to_db(group_accum).to_csv(group_out, index=False)
         global_accum = _merge_energy(global_accum, group_accum)
         rebuilt += 1
 
@@ -94,7 +104,7 @@ def main() -> None:
         raise RuntimeError("No group batch files found to rebuild.")
 
     global_out = root / "ground_truth_cumulative.csv"
-    _energy_to_db(global_accum).to_csv(global_out, sep=";", index=False)
+    _energy_to_db(global_accum).to_csv(global_out, index=False)
 
     print(f"Rebuilt groups: {rebuilt}")
     print(f"Wrote: {global_out}")
