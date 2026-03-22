@@ -2,6 +2,26 @@
 
 This log captures structural changes made to standardize experiments, outputs, and logs.
 
+## 2026-03-17
+- Added `experiments/experiment_grid_111_120_hdbscan_dtw_tuning.yaml` with DTW+HDBSCAN pilot experiments (`EXP111-EXP120`) for low-noise parameter tuning on `preprocessed_1` with deterministic per-flow sampling (`500/flow`).
+- Sweep includes `min_cluster_size`, `min_samples`, `cluster_selection_method` (`eom` vs `leaf`), `allow_single_cluster`, and `cluster_selection_epsilon` under dense DTW settings.
+- Added VS Code launch entry `Grid: Run EXP111-120 HDBSCAN DTW Tuning` in `.vscode/launch.json`.
+- Noted manual config updates to `dtw_window_size` for selected initial DTW experiment definitions in experiment-grid YAMLs (kept as user-driven tuning changes).
+- Added `experiments/experiment_grid_121_126_hdbscan_dtw_refine.yaml` as a narrower DTW+HDBSCAN follow-up around `EXP111`, targeting arrival recovery and lower noise with `eom`, `allow_single_cluster=true`, reduced `min_samples`, and small `cluster_selection_epsilon` / `dtw_window_size` sweeps.
+- Added VS Code launch entry `Grid: Run EXP121-126 HDBSCAN DTW Refine` in `.vscode/launch.json`.
+- Updated `experiments/experiment_grid.yaml` so only `EXP037-EXP045` remain active for the final rerun block: preserved `EXP037-EXP040` GMM baselines and repurposed `EXP041-EXP045` to full-data DTW (`HDBSCAN`/`OPTICS`) with dense precomputed evaluation enabled (`sparse_precomputed_max_n: 9000`) to emit silhouette / Davies-Bouldin / Calinski-Harabasz metrics.
+
+## 2026-03-14
+- Added dense-DTW pilot grid `experiments/experiment_grid_089_100_dtw_dense.yaml` for `EXP089-EXP100` across `kmeans`, `dbscan`, `hdbscan`, and `optics` on `preprocessed_1` with `sample_for_fit.max_flights_per_flow=900`.
+- Updated `scripts/run_experiment_grid.py` to support per-experiment `evaluation` overrides merged into `clustering.evaluation`.
+- Added `scripts/probe_dtw_dbscan_eps.py` for deterministic DBSCAN `eps` probing from DTW k-distance knees (per-flow + median `eps_base` summary).
+- Added `scripts/rank_dtw_pilot_and_promote.py` to rank DTW pilot runs with a composite score and optionally rewrite `EXP021-EXP024` in `experiments/experiment_grid.yaml`.
+- Added VS Code launch entries for running the dense-DTW pilot grid, probing DTW DBSCAN `eps`, and ranking/promoting pilot winners.
+
+## 2026-03-15
+- Added `scripts/attach_global_ground_truth_to_experiment_totals.py` to append all-flights ground truth columns to `aggregate_totals/overall_aligned_9points.csv` and update `overall_summary.json`.
+- Documented cloud-to-local Doc29 workflow: create `_summary_mse_local_paths.csv` from `summary_mse.csv`, then run `noise_simulation/compare_experiment_totals.py` to produce `aggregate_totals/`.
+
 ## 2026-02-02
 - Standardized experiment outputs under `output/experiments/<EXP>/`.
 - Standardized EDA outputs under `output/eda/` with logs in `logs/eda/`.
@@ -79,6 +99,16 @@ Wrote output\eda\raw_lengths\length_summary.json
   - `Doc29 Compare Totals (Fair)` using `noise_simulation/compare_experiment_totals.py`
 - Updated docs (`README.md`, `CODEBASE_OVERVIEW.md`) to reflect active scripts and archived paths.
 
+## 2026-03-10
+- Added `scripts/eda_noise_clustering_summary.py` to generate one mixed thesis-evaluation view for `EXP001..EXP062` linking clustering outputs and Doc29 noise results.
+- Standardized new summary outputs under `output/eda/`:
+  - `exp001_062_noise_clustering_experiment_summary.csv`
+  - `exp001_062_noise_clustering_flow_summary.csv`
+  - `exp001_062_noise_clustering_block_summary.csv`
+  - `exp001_062_noise_clustering_method_summary.csv`
+  - `exp001_062_noise_clustering_correlations.csv`
+- Added thesis note `thesis/docs/noise_clustering_results_exp001_062.md` to explain grouped vs experiment-wise interpretation and the use of all-flights ground truth as the primary overall ranking metric.
+
 2026-02-07 18:26:42
 - Added Doc29 Slurm jobs:
   - `jobs/run_doc29_ground_truth.job`
@@ -98,6 +128,30 @@ Where (L_{E,i}) is the single‑event exposure level, (g_i) is the time‑of‑d
 - Standardized the Frechet-grid job flow to run from the cloned project root under `~/Clustering/psychic-broccoli`.
 - Updated `scripts/plot_exp_latlon_flows.py` with `--exclude-noise` to generate cluster maps without `cluster_id = -1` flights.
 - Added no-noise output naming in flow plots: `clusters_<flow>_latlon_no_noise.png`.
+
+## 2026-03-21
+- Added operation-aware `euclidean_weighted` distance support in:
+  - `clustering/distances.py`
+  - `experiments/runner.py`
+- `euclidean_weighted` computes dense precomputed weighted-Euclidean distances on flattened fixed-length trajectories using point-index group weights, with operation-specific group selection from the flow label (`Landung` -> `Landing`, `Start` -> `Departure`).
+- Added weighted-Euclidean DBSCAN pilot grid:
+  - `experiments/experiment_grid_127_131_weighted_euclidean_dbscan.yaml`
+- Pilot design:
+  - `preprocessed_1`
+  - current sample pilot uses `1000 flights/flow`
+  - initially DBSCAN, then HDBSCAN `leaf`, then OPTICS, then rewritten back to weighted-Euclidean DBSCAN as the current variant
+  - current sweep:
+    - `eps = 9500, 10500, 11500, 12500, 13500`
+    - `min_samples = 8`
+  - operation-aware weighted Euclidean with:
+    - landing early emphasis
+    - departure late emphasis
+- Promoted the reverted weighted-Euclidean DBSCAN configuration into the main experiment grid as the final full-data sweep:
+  - `EXP046`-`EXP050`
+  - `distance_metric: euclidean_weighted`
+  - `eps = 8000, 9000, 10050, 11050, 12050`
+  - `min_samples = 8`
+  - operation-specific weights based on inverse `(p50 * spread)` step-group profiles
 
 ## 2026-02-19
 - Added `scripts/eda_unique_matched_trajectories.py` to compute repetition-aware unique trajectory counts directly from `matched_trajectories/matched_trajs_*.csv`.
@@ -133,5 +187,3 @@ Where (L_{E,i}) is the single‑event exposure level, (g_i) is the time‑of‑d
   - Added `lcsspy` to `requirements.txt`.
 - Updated registry:
   - Refreshed `thesis/docs/experiments_registry.md` with new EXP058-EXP070 definitions.
-
-

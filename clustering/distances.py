@@ -20,6 +20,101 @@ from distance_metrics import dtw_banded, frechet_discrete, lb_keogh, lcss_trajec
 logger = logging.getLogger(__name__)
 
 
+def _infer_operation_from_flow_name(flow_name: str | None) -> str | None:
+    """Map flow labels like ``Landung_09L`` / ``Start_09L`` to operation groups."""
+
+    if not flow_name:
+        return None
+    flow_name = str(flow_name).strip()
+    if flow_name.startswith("Landung"):
+        return "Landing"
+    if flow_name.startswith("Start"):
+        return "Departure"
+    return None
+
+
+def _expand_weighted_euclidean_feature_weights(
+    n_features: int,
+    params: dict,
+    flow_name: str | None = None,
+) -> np.ndarray:
+    """
+    Return per-feature weights for the custom weighted-Euclidean metric.
+
+    Expected config shape in ``distance_params``:
+
+      weighted_groups_by_operation:
+        Landing:
+          - {start_idx: 0, end_idx: 9, weight: 0.56}
+          - {start_idx: 10, end_idx: 19, weight: 0.77}
+        Departure:
+          - {start_idx: 0, end_idx: 9, weight: 1.76}
+
+    Group indices are point indices (inclusive). Weights are then repeated over
+    each coordinate dimension, e.g. x/y for 2D vectors.
+    """
+
+    n_dims = int(params.get("weighted_n_dims", 2))
+    if n_dims <= 0:
+        raise ValueError("weighted_n_dims must be positive.")
+    if n_features % n_dims != 0:
+        raise ValueError(
+            f"Weighted Euclidean requires feature length divisible by weighted_n_dims "
+            f"(got n_features={n_features}, weighted_n_dims={n_dims})."
+        )
+    n_points = n_features // n_dims
+    point_weights = np.ones(n_points, dtype=float)
+
+    groups_cfg = params.get("weighted_groups_by_operation") or {}
+    op = _infer_operation_from_flow_name(flow_name)
+    groups = []
+    if isinstance(groups_cfg, dict):
+        if op and op in groups_cfg:
+            groups = groups_cfg.get(op) or []
+        elif op:
+            groups = groups_cfg.get(op.lower(), []) or []
+    elif isinstance(groups_cfg, list):
+        groups = groups_cfg
+
+    for entry in groups:
+        if not isinstance(entry, dict):
+            continue
+        start = entry.get("start_idx", entry.get("start", 0))
+        end = entry.get("end_idx", entry.get("end", n_points - 1))
+        weight = entry.get("weight", 1.0)
+        try:
+            start_i = max(0, int(start))
+            end_i = min(n_points - 1, int(end))
+            weight_f = float(weight)
+        except Exception as exc:  # pragma: no cover - defensive
+            raise ValueError(f"Invalid weighted-euclidean group entry: {entry}") from exc
+        if end_i < start_i:
+            continue
+        if weight_f <= 0:
+            raise ValueError(f"Weighted Euclidean requires strictly positive weights, got {weight_f}.")
+        point_weights[start_i : end_i + 1] = weight_f
+
+    return np.repeat(point_weights, n_dims)
+
+
+def _weighted_euclidean_distance_matrix(
+    X: np.ndarray,
+    params: dict,
+    flow_name: str | None = None,
+) -> np.ndarray:
+    """Compute dense weighted-Euclidean distances on flattened fixed-length vectors."""
+
+    if X.ndim != 2:
+        raise ValueError("Weighted Euclidean requires a 2D feature matrix.")
+    feature_weights = _expand_weighted_euclidean_feature_weights(
+        n_features=int(X.shape[1]),
+        params=params,
+        flow_name=flow_name,
+    )
+    X_scaled = X.astype(float, copy=False) * np.sqrt(feature_weights)
+    return cdist(X_scaled, X_scaled, metric="euclidean")
+
+
 def build_feature_matrix(
     flights_df,
     vector_cols: Sequence[str],
@@ -165,7 +260,7 @@ def pairwise_distance_matrix(
 ):
     """
     Compute symmetric pairwise distance matrix (dense or sparse).
-    Supported metrics: euclidean, dtw, frechet, lcss.
+    Supported metrics: euclidean, euclidean_weighted, dtw, frechet, lcss.
     """
 
     metric = metric.lower()
@@ -195,6 +290,14 @@ def pairwise_distance_matrix(
         else:
             flat = np.stack([np.asarray(t, dtype=float).ravel() for t in trajectories], axis=0)
         D = cdist(flat, flat, metric="euclidean")
+    elif metric == "euclidean_weighted":
+        if isinstance(trajectories, np.ndarray):
+            if trajectories.ndim != 2:
+                raise ValueError("Weighted Euclidean distance requires a 2D feature matrix.")
+            flat = trajectories.astype(float, copy=False)
+        else:
+            flat = np.stack([np.asarray(t, dtype=float).ravel() for t in trajectories], axis=0)
+        D = _weighted_euclidean_distance_matrix(flat, params=params, flow_name=flow_name)
     elif metric in {"dtw", "frechet"}:
         if isinstance(trajectories, np.ndarray):
             raise ValueError(f"{metric} distance requires a sequence of (T,D) trajectories.")
