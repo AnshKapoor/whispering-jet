@@ -73,6 +73,11 @@ def parse_args() -> argparse.Namespace:
         default="output/eda",
         help="Base output folder. A timestamped subfolder is created inside it.",
     )
+    parser.add_argument(
+        "--output_tag",
+        default=None,
+        help="Optional fixed output folder name (overwrites if exists).",
+    )
     return parser.parse_args()
 
 
@@ -148,6 +153,8 @@ def _build_column_map(df: pd.DataFrame) -> Dict[str, Optional[str]]:
         "timestamp": pick(["timestamp", "time", "datetime", "ts"]),
         "icao24": pick(["icao24", "icao", "icao_24"]),
         "callsign": pick(["callsign", "call_sign"]),
+        "firstseen": pick(["firstseen", "first_seen"]),
+        "lastseen": pick(["lastseen", "last_seen"]),
         "lat": pick(["lat", "latitude"]),
         "lon": pick(["lon", "longitude", "long"]),
         "alt": pick(["alt", "altitude"]),
@@ -193,6 +200,136 @@ def _day_summary(day_counts: pd.Series) -> Dict[str, float]:
     }
 
 
+def _rows_summary(values: np.ndarray) -> Dict[str, float]:
+    if values.size == 0:
+        return {
+            "n_flights": 0,
+            "rows_per_flight_mean": np.nan,
+            "rows_per_flight_median": np.nan,
+            "rows_per_flight_p5": np.nan,
+            "rows_per_flight_p95": np.nan,
+        }
+    return {
+        "n_flights": int(values.size),
+        "rows_per_flight_mean": float(np.mean(values)),
+        "rows_per_flight_median": float(np.median(values)),
+        "rows_per_flight_p5": float(np.percentile(values, 5)),
+        "rows_per_flight_p95": float(np.percentile(values, 95)),
+    }
+
+
+def _flight_key_cols(has_firstseen: bool) -> List[str]:
+    if has_firstseen:
+        return ["icao24", "callsign", "firstseen", "lastseen"]
+    return ["icao24", "callsign", "segment_id"]
+
+
+def _compute_flight_stats(
+    df: pd.DataFrame,
+    colmap: Dict[str, Optional[str]],
+    gap_minutes: int = 10,
+) -> tuple[Dict[str, float], pd.DataFrame, pd.DataFrame]:
+    """
+    Compute per-flight row counts and sampling gap stats.
+
+    Returns:
+      - summary dict (rows per flight + gt1s share)
+      - per-flight counts DataFrame (flight_key -> n_rows)
+      - extremes DataFrame (min/max lat/lon with flight keys)
+    """
+
+    ts_col = colmap["timestamp"]
+    icao_col = colmap["icao24"]
+    call_col = colmap["callsign"]
+    lat_col = colmap["lat"]
+    lon_col = colmap["lon"]
+    first_col = colmap.get("firstseen")
+    last_col = colmap.get("lastseen")
+
+    if not ts_col or not icao_col or not call_col:
+        return {}, pd.DataFrame(), pd.DataFrame()
+
+    df_work = df.copy()
+    df_work[icao_col] = _normalized_text(df_work[icao_col])
+    df_work[call_col] = _normalized_text(df_work[call_col])
+    df_work[ts_col] = _as_datetime_utc(df_work[ts_col])
+    df_work = df_work.dropna(subset=[icao_col, call_col, ts_col])
+
+    has_firstseen = first_col in df_work.columns and last_col in df_work.columns
+    if has_firstseen:
+        df_work[first_col] = _as_datetime_utc(df_work[first_col])
+        df_work[last_col] = _as_datetime_utc(df_work[last_col])
+        df_work = df_work.dropna(subset=[first_col, last_col])
+        key_cols = [icao_col, call_col, first_col, last_col]
+    else:
+        key_cols = [icao_col, call_col]
+
+    if df_work.empty:
+        return {}, pd.DataFrame(), pd.DataFrame()
+
+    if not has_firstseen:
+        # Build segment_id using 10-min gap rule.
+        df_work = df_work.sort_values(key_cols + [ts_col])
+        gap = pd.Timedelta(minutes=gap_minutes)
+        df_work["segment_id"] = (
+            df_work.groupby(key_cols, sort=False)[ts_col]
+            .diff()
+            .fillna(pd.Timedelta(seconds=0))
+            .gt(gap)
+            .groupby([df_work[icao_col], df_work[call_col]])
+            .cumsum()
+            .to_numpy()
+        )
+        key_cols = [icao_col, call_col, "segment_id"]
+    else:
+        df_work = df_work.sort_values(key_cols + [ts_col])
+
+    # Rows per flight
+    counts = df_work.groupby(key_cols).size().rename("n_rows").reset_index()
+    rows_summary = _rows_summary(counts["n_rows"].to_numpy(dtype=float))
+
+    # Flights with any sampling interval > 1s
+    deltas = df_work.groupby(key_cols, sort=False)[ts_col].diff().dt.total_seconds()
+    df_work["delta_gt_1s"] = deltas.gt(1.0)
+    flight_gt1 = df_work.groupby(key_cols, sort=False)["delta_gt_1s"].max().reset_index()
+    n_gt1 = int(flight_gt1["delta_gt_1s"].sum())
+    rows_summary["n_flights_delta_gt_1s"] = n_gt1
+    rows_summary["pct_flights_delta_gt_1s"] = (
+        100.0 * n_gt1 / rows_summary["n_flights"] if rows_summary["n_flights"] else np.nan
+    )
+
+    # Extreme lat/lon flights
+    extremes = []
+    if lat_col in df_work.columns and lon_col in df_work.columns:
+        for metric, col, func in [
+            ("min_lat", lat_col, "idxmin"),
+            ("max_lat", lat_col, "idxmax"),
+            ("min_lon", lon_col, "idxmin"),
+            ("max_lon", lon_col, "idxmax"),
+        ]:
+            if df_work[col].notna().any():
+                idx = getattr(df_work[col], func)()
+                row = df_work.loc[idx]
+                # Handle duplicate indexes (may return multiple rows)
+                if isinstance(row, pd.DataFrame):
+                    row = row.iloc[0]
+                record = {
+                    "metric": metric,
+                    "latitude": float(row[lat_col]),
+                    "longitude": float(row[lon_col]),
+                    "timestamp": row[ts_col],
+                    "icao24": row[icao_col],
+                    "callsign": row[call_col],
+                }
+                for k in key_cols:
+                    if k in row:
+                        record[k] = row[k]
+                extremes.append(record)
+    extremes_df = pd.DataFrame(extremes)
+
+    return rows_summary, counts, extremes_df
+
+
 def _sample_array(values: np.ndarray, max_size: int, rng: np.random.RandomState) -> np.ndarray:
     if values.size <= max_size:
         return values
@@ -228,8 +365,11 @@ def _plot_sampling_hist(delta_values: np.ndarray, out_path: Path) -> None:
     if positives.size == 0:
         return
 
-    vmin = max(float(np.percentile(positives, 1)), 1e-3)
-    vmax = max(float(np.percentile(positives, 99.9)), vmin * 1.2)
+    # Use stable log bins to avoid collapsing at 10^0 when deltas are highly concentrated.
+    # Keep a wide, interpretable range and clip to observed max when larger.
+    vmin = 1e-1  # 0.1s
+    vmax = max(float(np.max(positives)), 1e2)  # at least 100s
+    vmax = min(vmax, 1e4)  # cap at 10,000s to avoid extreme tails dominating bins
     bins = np.logspace(np.log10(vmin), np.log10(vmax), 80)
 
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -411,6 +551,7 @@ def _write_markdown_report(
     gs_threshold: float,
     alt_units: str,
     alt_threshold: float,
+    flights_summary: pd.DataFrame,
 ) -> None:
     overall_volume = volume_by_month.loc[volume_by_month["month"] == "overall"].iloc[0]
     overall_day = volume_by_day_summary.loc[volume_by_day_summary["month"] == "overall"].iloc[0]
@@ -506,13 +647,37 @@ def _write_markdown_report(
     )
     lines.append("- Table: `sanity_checks.csv`.")
     lines.append("")
+    if not flights_summary.empty:
+        overall_flights = flights_summary[flights_summary["month"] == "overall"]
+        if not overall_flights.empty:
+            row = overall_flights.iloc[0]
+            lines.append("## G. Flight Segmentation (Raw ADS-B)")
+            lines.append(
+                f"- Unique flights (10-minute gap or firstseen/lastseen): **{int(row['n_flights']):,}**."
+            )
+            lines.append(
+                f"- Rows/flight: mean={row['rows_per_flight_mean']:.1f}, "
+                f"median={row['rows_per_flight_median']:.1f}, "
+                f"p5={row['rows_per_flight_p5']:.1f}, p95={row['rows_per_flight_p95']:.1f}."
+            )
+            if pd.notna(row.get("n_flights_delta_gt_1s")):
+                lines.append(
+                    f"- Flights with any sampling interval >1s: "
+                    f"{int(row['n_flights_delta_gt_1s']):,} "
+                    f"({row['pct_flights_delta_gt_1s']:.2f}%)."
+                )
+            lines.append("- Tables: `flight_summary_by_month.csv`, `flight_extremes_by_month.csv`.")
+            lines.append("")
 
     (out_dir / "raw_adsb_eda.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def run_eda(input_dir: Path, output_base: Path) -> Path:
-    run_tag = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    out_dir = output_base / f"raw_adsb_eda_{run_tag}"
+def run_eda(input_dir: Path, output_base: Path, output_tag: str | None = None) -> Path:
+    if output_tag:
+        out_dir = output_base / output_tag
+    else:
+        run_tag = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        out_dir = output_base / f"raw_adsb_eda_{run_tag}"
     figs_dir = out_dir / "figures"
     figs_dir.mkdir(parents=True, exist_ok=True)
     logger = _configure_logging(out_dir)
@@ -533,6 +698,9 @@ def run_eda(input_dir: Path, output_base: Path) -> Path:
     altitude_rows: List[dict] = []
     missing_rows: List[dict] = []
     sanity_rows: List[dict] = []
+    flight_rows: List[dict] = []
+    flight_extremes_rows: List[pd.DataFrame] = []
+    overall_flight_counts: List[float] = []
 
     overall_rows = 0
     overall_icao_set: set[str] = set()
@@ -781,6 +949,17 @@ def run_eda(input_dir: Path, output_base: Path) -> Path:
         overall_sanity["alt_gt_60000_rows"] += alt_gt_60000
         overall_sanity["alt_gt_18288_rows"] += alt_gt_18288
 
+        # Per-flight stats (firstseen/lastseen if available; else 10-minute gap rule)
+        flight_summary, flight_counts, extremes_df = _compute_flight_stats(df, colmap, gap_minutes=10)
+        if flight_summary:
+            flight_summary["month"] = month
+            flight_rows.append(flight_summary)
+        if not flight_counts.empty:
+            overall_flight_counts.extend(flight_counts["n_rows"].to_list())
+        if not extremes_df.empty:
+            extremes_df.insert(0, "month", month)
+            flight_extremes_rows.append(extremes_df)
+
         logger.info("Finished %s: rows=%d unique_icao24=%d valid_ts=%d", month, n_rows, unique_icao, int(ts_valid.size))
 
     if overall_rows == 0:
@@ -881,6 +1060,8 @@ def run_eda(input_dir: Path, output_base: Path) -> Path:
     altitude_df = pd.DataFrame(altitude_rows)
     missing_df = pd.DataFrame(missing_rows)
     sanity_df = pd.DataFrame(sanity_rows)
+    flights_df = pd.DataFrame(flight_rows)
+    extremes_df = pd.concat(flight_extremes_rows, ignore_index=True) if flight_extremes_rows else pd.DataFrame()
     sanity_df["gs_unrealistically_high_rows"] = sanity_df["gs_gt_700_rows"] if gs_units == "knots" else sanity_df["gs_gt_350_rows"]
     sanity_df["alt_unrealistically_high_rows"] = sanity_df["alt_gt_60000_rows"] if alt_units == "feet" else sanity_df["alt_gt_18288_rows"]
     sanity_df["gs_unit_inferred"] = gs_units
@@ -895,6 +1076,15 @@ def run_eda(input_dir: Path, output_base: Path) -> Path:
     altitude_df.to_csv(out_dir / "altitude_summary.csv", index=False)
     missing_df.to_csv(out_dir / "missingness_by_month.csv", index=False)
     sanity_df.to_csv(out_dir / "sanity_checks.csv", index=False)
+    if not flights_df.empty:
+        overall_flight_summary = _rows_summary(np.array(overall_flight_counts, dtype=float))
+        overall_flight_summary["n_flights_delta_gt_1s"] = np.nan
+        overall_flight_summary["pct_flights_delta_gt_1s"] = np.nan
+        overall_flight_summary["month"] = "overall"
+        flights_df = pd.concat([flights_df, pd.DataFrame([overall_flight_summary])], ignore_index=True)
+        flights_df.to_csv(out_dir / "flight_summary_by_month.csv", index=False)
+    if not extremes_df.empty:
+        extremes_df.to_csv(out_dir / "flight_extremes_by_month.csv", index=False)
 
     _plot_sampling_hist(delta_plot, figs_dir / "sampling_delta_hist.png")
     _plot_sampling_ecdf(delta_plot, figs_dir / "sampling_delta_ecdf.png")
@@ -924,6 +1114,7 @@ def run_eda(input_dir: Path, output_base: Path) -> Path:
         gs_threshold=gs_threshold,
         alt_units=alt_units,
         alt_threshold=alt_threshold,
+        flights_summary=flights_df,
     )
 
     logger.info("Inferred units: gs=%s (q99=%.3f, threshold=%.1f)", gs_units, gs_q99, gs_threshold)
@@ -938,7 +1129,7 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
-    run_eda(input_dir=input_dir, output_base=output_dir)
+    run_eda(input_dir=input_dir, output_base=output_dir, output_tag=args.output_tag)
 
 
 if __name__ == "__main__":

@@ -85,14 +85,27 @@ def _read_preprocessed(preprocessed_path: Path, flight_ids: set[int]) -> pd.Data
 
 
 def _cluster_palette(cluster_ids: Iterable[int]) -> dict[int, str]:
-    palette = {}
-    base = ["#E15759", "#59A14F", "#4E79A7", "#F1CE63","#C6A7CB"]
-    for idx, cid in enumerate(sorted(cluster_ids)):
-        # Keep cluster 4 slightly lighter for readability in dense overlays.
+    palette: dict[int, str] = {}
+    # High-contrast qualitative palette (stable ordering by sorted cluster id).
+    # First 8 are intentionally very distinct for dense overlays.
+    base = [
+        "#4E79A7",  # blue
+        "#F28E2B",  # orange
+        "#E15759",  # red
+        "#76B7B2",  # teal
+        "#59A14F",  # green
+        "#EDC948",  # yellow
+        "#B07AA1",  # purple
+        "#FF9DA7",  # pink
+        "#9C755F",  # brown
+        "#BAB0AC",  # gray
+    ]
 
+    for idx, cid in enumerate(sorted(cluster_ids)):
         if idx < len(base):
             palette[cid] = base[idx]
         else:
+            # Keep deterministic fallback for >10 clusters.
             palette[cid] = plt.get_cmap("tab20")(idx % 20)
     return palette
 
@@ -154,7 +167,8 @@ def _plot_flow(
         ]
         if not noise_df.empty:
             handles.insert(0, Line2D([0], [0], color=noise_color, lw=2, label="noise"))
-        ax.legend(handles=handles, loc="upper right", frameon=True, framealpha=0.9)
+        legend_loc = "upper left" if len(cluster_ids) == 8 else "upper right"
+        ax.legend(handles=handles, loc=legend_loc, frameon=True, framealpha=0.9)
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=220)

@@ -99,6 +99,12 @@ def main(grid_path: Path) -> None:
             cfg["clustering"]["distance_metric"] = distance_metric
             cfg["clustering"][method] = params
             cfg["clustering"]["distance_params"] = copy.deepcopy(distance_params)
+            # Allow per-experiment overrides for clustering evaluation options
+            # (e.g., precomputed DB/CH via cmdscale embedding).
+            exp_eval = exp.get("evaluation")
+            if exp_eval:
+                cfg["clustering"].setdefault("evaluation", {})
+                cfg["clustering"]["evaluation"].update(copy.deepcopy(exp_eval))
             if "sample_for_fit" in exp:
                 cfg["clustering"]["sample_for_fit"] = copy.deepcopy(exp["sample_for_fit"])
             grid_flows = grid.get("flows")

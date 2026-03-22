@@ -1,0 +1,96 @@
+output:
+  dir: "output"
+  skip_completed: false
+
+experiments:
+  - name: "EXP021"
+    experiment_name: "EXP021"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 62000, min_samples: 8 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP022"
+    experiment_name: "EXP022"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 68000, min_samples: 8 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP023"
+    experiment_name: "EXP023"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 74000, min_samples: 8 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP024"
+    experiment_name: "EXP024"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 68000, min_samples: 6 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }

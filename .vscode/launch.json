@@ -44,7 +44,43 @@
             "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
             "args": [
                 "--grid",
-                "experiments/experiment_grid.yaml"
+                "experiments/experiment_grid_051_070_dtw_frechet.yaml"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Grid: Run EXP089-100 DTW Dense Pilot",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
+            "args": [
+                "--grid",
+                "experiments/experiment_grid_089_100_dtw_dense.yaml"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Grid: Run EXP111-120 HDBSCAN DTW Tuning",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
+            "args": [
+                "--grid",
+                "experiments/experiment_grid_111_120_hdbscan_dtw_tuning.yaml"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Grid: Run EXP121-126 HDBSCAN DTW Refine",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_experiment_grid.py",
+            "args": [
+                "--grid",
+                "experiments/experiment_grid_121_126_hdbscan_dtw_refine.yaml"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -57,6 +93,47 @@
             "args": [
                 "--grid",
                 "${input:experimentGridPath}"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "DTW: Probe DBSCAN eps (Dense)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/probe_dtw_dbscan_eps.py",
+            "args": [
+                "--preprocessed",
+                "${input:dtwProbePreprocessed}",
+                "--sample-per-flow",
+                "${input:dtwProbeSamplePerFlow}",
+                "--min-samples",
+                "8",
+                "--candidate-k",
+                "999999",
+                "--dtw-window-size",
+                "8"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "DTW: Rank Pilot + Promote EXP021-024",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/rank_dtw_pilot_and_promote.py",
+            "args": [
+                "--output-root",
+                "output/experiments",
+                "--exp-start",
+                "89",
+                "--exp-end",
+                "100",
+                "--outdir",
+                "output/eda/dtw_dense_pilot_ranking",
+                "--target-grid",
+                "experiments/experiment_grid.yaml",
+                "--apply-promotion"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -81,7 +158,7 @@
                 "--experiment",
                 "${input:experimentName}",
                 "--arrival-scheme",
-                "median"
+                "${input:arrivalScheme}"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -98,6 +175,10 @@
                 "Start_09R",
                 "Start_27L",
                 "Start_27R",
+                "Landung_09L",
+                "Landung_09R",
+                "Landung_27L",
+                "Landung_27R",
                 "--max-flights-per-cluster",
                 "200"
             ],
@@ -116,9 +197,13 @@
                 "Start_09R",
                 "Start_27L",
                 "Start_27R",
+                "Landung_09L",
+                "Landung_09R",
+                "Landung_27L",
+                "Landung_27R",
+                // "--include-noise",
                 "--max-flights-per-cluster",
-                "200",
-                "--include-noise"
+                "200"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
@@ -194,6 +279,29 @@
             "cwd": "${workspaceFolder}"
         },
         {
+            "name": "EDA Flow Speed Stats",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/eda_flow_speed_stats.py",
+            "args": [
+                "--preprocessed",
+                "${input:flowSpeedPreprocessed}",
+                "--sample-per-flow",
+                "${input:flowSpeedSamplePerFlow}"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug: HDBSCAN Toy",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/hdbscan_toy_debug.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false
+        },
+        {
             "name": "Doc29 Automation (Experiment)",
             "type": "debugpy",
             "request": "launch",
@@ -234,6 +342,66 @@
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Demo: DTW Alignment for Two Flights",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dtw_alignment_demo.py",
+            "args": [
+                "--preprocessed",
+                "${input:dtwDemoPreprocessed}",
+                "--flight-a",
+                "${input:dtwDemoFlightA}",
+                "--flight-b",
+                "${input:dtwDemoFlightB}"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Demo: DTW Alignment (Random Sample IDs)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dtw_alignment_demo.py",
+            "args": [
+                "--preprocessed",
+                "${input:dtwDemoPreprocessed}",
+                "--list-random",
+                "20"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Demo: Frechet Distance for Two Flights",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/frechet_distance_demo.py",
+            "args": [
+                "--preprocessed",
+                "${input:dtwDemoPreprocessed}",
+                "--flight-a",
+                "${input:dtwDemoFlightA}",
+                "--flight-b",
+                "${input:dtwDemoFlightB}"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Demo: Frechet (Random Sample IDs)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/frechet_distance_demo.py",
+            "args": [
+                "--preprocessed",
+                "${input:dtwDemoPreprocessed}",
+                "--list-random",
+                "20"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         }
         ,
         {
@@ -261,6 +429,22 @@
             "default": "EXP77"
         },
         {
+            "id": "experimentGridPath",
+            "type": "promptString",
+            "description": "Experiment grid YAML path",
+            "default": "experiments/experiment_grid_089_100_dtw_dense.yaml"
+        },
+        {
+            "id": "arrivalScheme",
+            "type": "pickString",
+            "description": "Arrival plotting scheme",
+            "options": [
+                "median",
+                "seven"
+            ],
+            "default": "median"
+        },
+        {
             "id": "doc29Experiment",
             "type": "promptString",
             "description": "Doc29 experiment folder name (e.g., EXP77)",
@@ -271,6 +455,37 @@
             "type": "promptString",
             "description": "Preprocessed CSV path",
             "default": "data/preprocessed/preprocessed_1.csv"
+        },
+        {
+            "id": "flowSpeedPreprocessed",
+            "type": "pickString",
+            "description": "Preprocessed CSV for flow speed statistics",
+            "options": [
+                "output/preprocessed/preprocessed_1.csv | 36578 flights",
+                "output/preprocessed/preprocessed_2.csv | 36578 flights",
+                "output/preprocessed/preprocessed_3.csv | 36578 flights",
+                "output/preprocessed/preprocessed_4.csv | 36578 flights",
+                "output/preprocessed/preprocessed_5.csv | 36578 flights",
+                "output/preprocessed/preprocessed_6.csv | 36578 flights",
+                "output/preprocessed/preprocessed_7.csv | 36578 flights",
+                "output/preprocessed/preprocessed_8.csv | 36578 flights",
+                "output/preprocessed/preprocessed_9.csv | 36578 flights",
+                "output/preprocessed/preprocessed_10.csv | 36578 flights",
+                "output/preprocessed/preprocessed_11.csv | 36448 flights",
+                "output/preprocessed/preprocessed_12.csv | 36448 flights"
+            ],
+            "default": "output/preprocessed/preprocessed_1.csv | 36578 flights"
+        },
+        {
+            "id": "flowSpeedSamplePerFlow",
+            "type": "pickString",
+            "description": "Maximum sampled flights per flow",
+            "options": [
+                "500",
+                "1000",
+                "1500"
+            ],
+            "default": "1000"
         },
         {
             "id": "groundTruthOut",
@@ -289,6 +504,41 @@
             "type": "promptString",
             "description": "Totals comparison output folder",
             "default": "noise_simulation/results/EXP001/aggregate_totals"
+        },
+        {
+            "id": "dtwDemoPreprocessed",
+            "type": "promptString",
+            "description": "Preprocessed CSV for DTW demo",
+            "default": "output/preprocessed/preprocessed_1.csv"
+        },
+        {
+            "id": "dtwProbePreprocessed",
+            "type": "promptString",
+            "description": "Preprocessed CSV for DTW DBSCAN eps probe",
+            "default": "output/preprocessed/preprocessed_1.csv"
+        },
+        {
+            "id": "dtwProbeSamplePerFlow",
+            "type": "pickString",
+            "description": "Sample size per flow for DTW DBSCAN eps probe",
+            "options": [
+                "100",
+                "300",
+                "900"
+            ],
+            "default": "900"
+        },
+        {
+            "id": "dtwDemoFlightA",
+            "type": "promptString",
+            "description": "First flight_id for DTW demo",
+            "default": "11"
+        },
+        {
+            "id": "dtwDemoFlightB",
+            "type": "promptString",
+            "description": "Second flight_id for DTW demo",
+            "default": "201"
         }
     ]
 }
