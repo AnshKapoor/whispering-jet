@@ -1,8 +1,8 @@
-"""Compare cluster-based vs per-category ground-truth cumulative noise fairly.
+"""Compare cluster-based predictions against retained-flight reference totals.
 
 This script sits on top of Doc29 automation outputs and aggregates both:
 1) cluster-based predictions (`subtracks.csv`)
-2) per-cluster/per-type ground-truth (`groundtruth.csv`)
+2) retained-flight reference totals (`groundtruth.csv`)
 in the energy domain, then compares them per category and overall.
 
 Usage:
@@ -17,14 +17,13 @@ Input format:
 Output files:
   - category_summary.csv
       One row per category with:
-      avg_cumulative_res_pred, avg_cumulative_res_gt, mae_cumulative_res,
-      mse_cumulative_res, rmse_cumulative_res, n_receivers
+      mae_cluster, n_receivers
   - category_aligned_receivers.csv
       Receiver-level aligned values per category:
-      x, y, z, cumulative_res_pred, cumulative_res_gt, abs_err, sq_err
+      measuring_point, L_eq_pred, L_eq_cluster, delta_cluster, abs_err_cluster
   - overall_aligned_9points.csv
       One row per receiver point (typically 9) after aggregating all categories:
-      x, y, z, cumulative_res_pred, cumulative_res_gt, delta, abs_err, sq_err
+      measuring_point, L_eq_pred, L_eq_cluster, delta_cluster, abs_err_cluster
   - overall_summary.json
       Same metrics after aggregating all categories together.
 """
@@ -89,37 +88,27 @@ def _compare_energy_maps(
     pred_energy: pd.DataFrame,
     gt_energy: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
-    """Align prediction and ground truth at receiver level, then compute metrics."""
+    """Align prediction and retained-flight reference at receiver level."""
     pred = pred_energy.copy()
     gt = gt_energy.copy()
-    pred["cumulative_res_pred"] = _to_db(pred["energy"].to_numpy())
-    gt["cumulative_res_gt"] = _to_db(gt["energy"].to_numpy())
-    merged = pred[["x", "y", "z", "cumulative_res_pred"]].merge(
-        gt[["x", "y", "z", "cumulative_res_gt"]],
+    pred["L_eq_pred"] = _to_db(pred["energy"].to_numpy())
+    gt["L_eq_cluster"] = _to_db(gt["energy"].to_numpy())
+    merged = pred[["x", "y", "z", "L_eq_pred"]].merge(
+        gt[["x", "y", "z", "L_eq_cluster"]],
         on=["x", "y", "z"],
         how="inner",
     )
     if merged.empty:
         raise ValueError("No overlapping receiver rows between prediction and ground truth.")
 
-    diff = merged["cumulative_res_pred"] - merged["cumulative_res_gt"]
-    merged["abs_err"] = np.abs(diff)
-    merged["sq_err"] = np.square(diff)
+    diff = merged["L_eq_pred"] - merged["L_eq_cluster"]
+    merged["delta_cluster"] = diff
+    merged["abs_err_cluster"] = np.abs(diff)
 
-    # Log-energy average over receiver points.
-    avg_pred = float(_to_db(np.array([np.mean(_to_energy(merged["cumulative_res_pred"].to_numpy()))]))[0])
-    avg_gt = float(_to_db(np.array([np.mean(_to_energy(merged["cumulative_res_gt"].to_numpy()))]))[0])
-    mse = float(np.mean(merged["sq_err"]))
-    mae = float(np.mean(merged["abs_err"]))
-    rmse = float(np.sqrt(mse))
+    mae = float(np.mean(merged["abs_err_cluster"]))
 
     metrics = {
-        "avg_cumulative_res_pred": avg_pred,
-        "avg_cumulative_res_gt": avg_gt,
-        "delta_avg_cumulative_res": float(avg_pred - avg_gt),
-        "mae_cumulative_res": mae,
-        "mse_cumulative_res": mse,
-        "rmse_cumulative_res": rmse,
+        "mae_cluster": mae,
         "n_receivers": int(len(merged)),
     }
     return merged, metrics
@@ -217,7 +206,12 @@ def main() -> None:
 
     aligned_all = pd.concat(aligned_frames, ignore_index=True)
     aligned_all = annotate_measuring_points(aligned_all)
-    aligned_cols = group_cols + ["x", "y", "z", "cumulative_res_pred", "cumulative_res_gt", "abs_err", "sq_err"]
+    aligned_cols = group_cols + [
+        "L_eq_pred",
+        "L_eq_cluster",
+        "delta_cluster",
+        "abs_err_cluster",
+    ]
     aligned_cols = ["measuring_point"] + aligned_cols
     aligned_path = out_dir / "category_aligned_receivers.csv"
     aligned_all[aligned_cols].to_csv(aligned_path, index=False)
@@ -225,11 +219,10 @@ def main() -> None:
     if overall_pred is None or overall_gt is None:
         raise RuntimeError("No overall aggregates produced. Check input summary.")
     overall_aligned, overall_metrics = _compare_energy_maps(overall_pred, overall_gt)
-    overall_aligned = overall_aligned.copy()
-    overall_aligned["delta"] = (
-        overall_aligned["cumulative_res_pred"] - overall_aligned["cumulative_res_gt"]
-    )
     overall_aligned = annotate_measuring_points(overall_aligned)
+    overall_aligned = overall_aligned[
+        ["measuring_point", "L_eq_pred", "L_eq_cluster", "delta_cluster", "abs_err_cluster"]
+    ].copy()
     overall_aligned_path = out_dir / "overall_aligned_9points.csv"
     overall_aligned.to_csv(overall_aligned_path, index=False)
 
