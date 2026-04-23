@@ -490,7 +490,7 @@ def run_experiment(cfg_path: Path, preprocessed_override: Path | None = None) ->
     if any(col in {"latitude", "longitude"} for col in vector_cols):
         raise ValueError("Vector columns must use UTM coordinates only (x_utm, y_utm).")
     log_lines.append(f"Vector columns: {vector_cols}")
-    if distance_metric in {"dtw", "frechet", "lcss"} and distance_params:
+    if distance_metric in {"dtw", "frechet", "lcss", "euclidean_weighted"} and distance_params:
         log_lines.append(f"Distance params: {distance_params}")
     if sample_enabled:
         log_lines.append(
@@ -587,7 +587,7 @@ def run_experiment(cfg_path: Path, preprocessed_override: Path | None = None) ->
             raw_sample_len = int(raw_sample_vec.shape[0]) if raw_sample_vec.ndim > 0 else 1
             if len(vector_cols) > 0 and raw_sample_len % len(vector_cols) == 0:
                 raw_sample_points_from_vec = int(raw_sample_len // len(vector_cols))
-        precomputed_needed = distance_metric in {"dtw", "frechet", "lcss"}
+        precomputed_needed = distance_metric in {"dtw", "frechet", "lcss", "euclidean_weighted"}
         feature_transform_meta: dict = {}
         if not precomputed_needed:
             try:

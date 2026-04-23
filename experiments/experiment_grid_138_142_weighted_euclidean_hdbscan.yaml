@@ -1,10 +1,14 @@
 experiments:
-  # EXP046-EXP050: weighted-Euclidean DBSCAN final full-data sweep
-  - name: "EXP046"
-    experiment_name: "EXP046"
-    method: "dbscan"
+  # EXP138-EXP142: weighted-Euclidean HDBSCAN pilot
+  # Uses the same operation-aware weighted-Euclidean distance as the
+  # weighted DBSCAN block, but swaps the clustering method to HDBSCAN and
+  # sweeps min_cluster_size to test whether a density hierarchy behaves
+  # better than a fixed-radius cutoff on the same weighted geometry.
+  - name: "EXP138"
+    experiment_name: "EXP138"
+    method: "hdbscan"
     distance_metric: "euclidean_weighted"
-    dbscan: { eps: 8000, min_samples: 8 }
+    hdbscan: { min_cluster_size: 12, min_samples: null }
     distance_params:
       weighted_n_dims: 2
       weighted_groups_by_operation:
@@ -18,15 +22,22 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP047"
-    experiment_name: "EXP047"
-    method: "dbscan"
+  - name: "EXP139"
+    experiment_name: "EXP139"
+    method: "hdbscan"
     distance_metric: "euclidean_weighted"
-    dbscan: { eps: 9000, min_samples: 8 }
+    hdbscan: { min_cluster_size: 16, min_samples: null }
     distance_params:
       weighted_n_dims: 2
       weighted_groups_by_operation:
@@ -40,15 +51,22 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP048"
-    experiment_name: "EXP048"
-    method: "dbscan"
+  - name: "EXP140"
+    experiment_name: "EXP140"
+    method: "hdbscan"
     distance_metric: "euclidean_weighted"
-    dbscan: { eps: 10050, min_samples: 8 }
+    hdbscan: { min_cluster_size: 20, min_samples: null }
     distance_params:
       weighted_n_dims: 2
       weighted_groups_by_operation:
@@ -62,15 +80,22 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP049"
-    experiment_name: "EXP049"
-    method: "dbscan"
+  - name: "EXP141"
+    experiment_name: "EXP141"
+    method: "hdbscan"
     distance_metric: "euclidean_weighted"
-    dbscan: { eps: 11050, min_samples: 8 }
+    hdbscan: { min_cluster_size: 24, min_samples: null }
     distance_params:
       weighted_n_dims: 2
       weighted_groups_by_operation:
@@ -84,15 +109,22 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP050"
-    experiment_name: "EXP050"
-    method: "dbscan"
+  - name: "EXP142"
+    experiment_name: "EXP142"
+    method: "hdbscan"
     distance_metric: "euclidean_weighted"
-    dbscan: { eps: 12050, min_samples: 8 }
+    hdbscan: { min_cluster_size: 30, min_samples: null }
     distance_params:
       weighted_n_dims: 2
       weighted_groups_by_operation:
@@ -106,10 +138,16 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
-
 
 flows:
   flow_keys: ["A/D", "Runway"]
@@ -120,7 +158,7 @@ input:
 
 output:
   dir: "output"
-  skip_completed: true
+  skip_completed: false
 
 features:
   vector_cols: ["x_utm", "y_utm"]

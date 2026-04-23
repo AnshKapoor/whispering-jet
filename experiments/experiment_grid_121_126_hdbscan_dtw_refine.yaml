@@ -1,0 +1,186 @@
+experiments:
+  # HDBSCAN refinement block on preprocessed_1 with 500 flights/flow sample.
+  # Objective: improve on EXP111 by lowering noise while keeping arrivals <=2 clusters
+  # and departures near the 2-4 cluster operating range.
+
+  - name: "EXP121"
+    experiment_name: "EXP121"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 8
+      min_samples: 3
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.00
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 10
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP122"
+    experiment_name: "EXP122"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 10
+      min_samples: 4
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.00
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 10
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP123"
+    experiment_name: "EXP123"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 12
+      min_samples: 4
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.05
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 10
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP124"
+    experiment_name: "EXP124"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 10
+      min_samples: 3
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.05
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP125"
+    experiment_name: "EXP125"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 10
+      min_samples: 4
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.05
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 12
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP126"
+    experiment_name: "EXP126"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 12
+      min_samples: 5
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.10
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 10
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+input:
+  preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+output:
+  dir: "output"
+  skip_completed: true
+
+features:
+  vector_cols: ["x_utm", "y_utm"]

@@ -10,6 +10,9 @@ Outputs:
   - noise_simulation/results/EXP###/aggregate_totals/*
   - logs/experiments/EXP###_compare_totals.log
   - logs/experiments/compare_totals_batch_summary_EXP###_EXP###.csv
+
+The batch run also attaches the matching all-flights ground truth per
+experiment after aggregate totals are created.
 """
 
 from __future__ import annotations
@@ -140,6 +143,16 @@ def main() -> None:
         default=7,
         help="Passed through to compare_experiment_totals.py --tracks-per-cluster.",
     )
+    parser.add_argument(
+        "--ground-truth-root",
+        default="noise_simulation/results_ground_truth",
+        help="Passed through to attach_global_ground_truth_to_experiment_totals.py --ground-truth-root.",
+    )
+    parser.add_argument(
+        "--fallback-ground-truth-csv",
+        default="noise_simulation/results_ground_truth/preprocessed_1_final/ground_truth_cumulative.csv",
+        help="Fallback all-flights ground truth CSV if the experiment-specific one is missing.",
+    )
     args = parser.parse_args()
 
     if args.start > args.end:
@@ -148,8 +161,11 @@ def main() -> None:
     results_root = (REPO_ROOT / args.results_root).resolve()
     logs_dir = (REPO_ROOT / args.logs_dir).resolve()
     compare_script = (REPO_ROOT / "noise_simulation" / "compare_experiment_totals.py").resolve()
+    attach_script = (REPO_ROOT / "scripts" / "attach_global_ground_truth_to_experiment_totals.py").resolve()
     if not compare_script.exists():
         raise FileNotFoundError(f"Missing script: {compare_script}")
+    if not attach_script.exists():
+        raise FileNotFoundError(f"Missing script: {attach_script}")
 
     exp_numbers = list(range(args.start, args.end + 1))
     total_runs = len(exp_numbers)
@@ -252,33 +268,75 @@ def main() -> None:
         log_lines.append("Command:")
         log_lines.append(" ".join(cmd))
 
-        proc = subprocess.run(
+        compare_proc = subprocess.run(
             cmd,
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
         )
+        attach_proc = None
+        if compare_proc.returncode == 0:
+            attach_cmd = [
+                sys.executable,
+                str(attach_script),
+                "--results-root",
+                args.results_root,
+                "--ground-truth-root",
+                args.ground_truth_root,
+                "--fallback-ground-truth-csv",
+                args.fallback_ground_truth_csv,
+                "--start",
+                str(n),
+                "--end",
+                str(n),
+            ]
+            log_lines.append("Attach command:")
+            log_lines.append(" ".join(attach_cmd))
+            attach_proc = subprocess.run(
+                attach_cmd,
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+            )
+
         elapsed = time.perf_counter() - t0
-        ok = proc.returncode == 0
+        ok = compare_proc.returncode == 0 and (attach_proc is None or attach_proc.returncode == 0)
         status = "ok" if ok else "failed"
-        err = "" if ok else (proc.stderr.strip() or "compare_experiment_totals.py returned non-zero exit code")
+        if compare_proc.returncode != 0:
+            err = compare_proc.stderr.strip() or "compare_experiment_totals.py returned non-zero exit code"
+        elif attach_proc is not None and attach_proc.returncode != 0:
+            err = attach_proc.stderr.strip() or "attach_global_ground_truth_to_experiment_totals.py returned non-zero exit code"
+        else:
+            err = ""
 
         log_lines.append(f"Status: {'OK' if ok else 'FAILED'}")
-        log_lines.append(f"Return code: {proc.returncode}")
+        log_lines.append(f"Compare return code: {compare_proc.returncode}")
+        if attach_proc is not None:
+            log_lines.append(f"Attach return code: {attach_proc.returncode}")
         log_lines.append(f"Elapsed seconds: {elapsed:.2f}")
-        if proc.stdout:
-            log_lines.append("STDOUT:")
-            log_lines.append(proc.stdout.rstrip())
-        if proc.stderr:
-            log_lines.append("STDERR:")
-            log_lines.append(proc.stderr.rstrip())
+        if compare_proc.stdout:
+            log_lines.append("COMPARE STDOUT:")
+            log_lines.append(compare_proc.stdout.rstrip())
+        if compare_proc.stderr:
+            log_lines.append("COMPARE STDERR:")
+            log_lines.append(compare_proc.stderr.rstrip())
+        if attach_proc is not None and attach_proc.stdout:
+            log_lines.append("ATTACH STDOUT:")
+            log_lines.append(attach_proc.stdout.rstrip())
+        if attach_proc is not None and attach_proc.stderr:
+            log_lines.append("ATTACH STDERR:")
+            log_lines.append(attach_proc.stderr.rstrip())
         _write_log(log_file, log_lines)
 
         results.append(
             RunResult(
                 experiment=exp,
                 status=status,
-                return_code=proc.returncode,
+                return_code=0 if ok else (
+                    attach_proc.returncode
+                    if attach_proc is not None and attach_proc.returncode != 0
+                    else compare_proc.returncode
+                ),
                 elapsed_sec=elapsed,
                 summary_csv=str(summary_csv),
                 out_dir=str(out_dir),

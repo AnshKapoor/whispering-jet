@@ -1,7 +1,6 @@
 experiments:
-  # EXP046-EXP050: weighted-Euclidean DBSCAN final full-data sweep
-  - name: "EXP046"
-    experiment_name: "EXP046"
+  - name: "EXP127"
+    experiment_name: "EXP127"
     method: "dbscan"
     distance_metric: "euclidean_weighted"
     dbscan: { eps: 8000, min_samples: 8 }
@@ -18,12 +17,17 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP047"
-    experiment_name: "EXP047"
+  - name: "EXP128"
+    experiment_name: "EXP128"
     method: "dbscan"
     distance_metric: "euclidean_weighted"
     dbscan: { eps: 9000, min_samples: 8 }
@@ -40,12 +44,17 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP048"
-    experiment_name: "EXP048"
+  - name: "EXP129"
+    experiment_name: "EXP129"
     method: "dbscan"
     distance_metric: "euclidean_weighted"
     dbscan: { eps: 10050, min_samples: 8 }
@@ -62,12 +71,17 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP049"
-    experiment_name: "EXP049"
+  - name: "EXP130"
+    experiment_name: "EXP130"
     method: "dbscan"
     distance_metric: "euclidean_weighted"
     dbscan: { eps: 11050, min_samples: 8 }
@@ -84,12 +98,17 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
 
-  - name: "EXP050"
-    experiment_name: "EXP050"
+  - name: "EXP131"
+    experiment_name: "EXP131"
     method: "dbscan"
     distance_metric: "euclidean_weighted"
     dbscan: { eps: 12050, min_samples: 8 }
@@ -106,10 +125,14 @@ experiments:
           - { start_idx: 10, end_idx: 19, weight: 1.03 }
           - { start_idx: 20, end_idx: 29, weight: 0.67 }
           - { start_idx: 30, end_idx: 39, weight: 0.54 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
     evaluation:
       include_noise: false
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
-
 
 flows:
   flow_keys: ["A/D", "Runway"]
@@ -120,7 +143,7 @@ input:
 
 output:
   dir: "output"
-  skip_completed: true
+  skip_completed: false
 
 features:
   vector_cols: ["x_utm", "y_utm"]

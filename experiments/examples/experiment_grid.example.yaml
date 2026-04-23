@@ -1,0 +1,55 @@
+experiments:
+  - name: "EXP001"
+    experiment_name: "EXP001"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics:
+      min_samples: 12
+      xi: 0.04
+      min_cluster_size: 0.04
+    evaluation:
+      include_noise: false
+    input:
+      preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+  - name: "EXP002"
+    experiment_name: "EXP002"
+    method: "dbscan"
+    distance_metric: "euclidean"
+    dbscan:
+      eps: 250
+      min_samples: 12
+    evaluation:
+      include_noise: false
+    input:
+      preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+  - name: "EXP003"
+    experiment_name: "EXP003"
+    method: "dbscan"
+    distance_metric: "dtw"
+    dbscan:
+      eps: 68000
+      min_samples: 8
+    distance_params:
+      dtw_window_size: 8
+      use_lb_keogh: true
+      lb_keogh_radius: 8
+    evaluation:
+      include_noise: false
+    input:
+      preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+input:
+  preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+output:
+  dir: "output"
+  skip_completed: true
+
+features:
+  vector_cols: ["x_utm", "y_utm"]

@@ -1,0 +1,437 @@
+experiments:
+  # EXP001-EXP010: RQ1 + preprocessing variants (same OPTICS params, vary preprocessed)
+  - name: "EXP001"
+    experiment_name: "EXP001"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP002"
+    experiment_name: "EXP002"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_2.csv" }
+
+  - name: "EXP003"
+    experiment_name: "EXP003"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  - name: "EXP004"
+    experiment_name: "EXP004"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_4.csv" }
+
+  - name: "EXP005"
+    experiment_name: "EXP005"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_5.csv" }
+
+  - name: "EXP006"
+    experiment_name: "EXP006"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_6.csv" }
+
+  - name: "EXP007"
+    experiment_name: "EXP007"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_7.csv" }
+
+  - name: "EXP008"
+    experiment_name: "EXP008"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_8.csv" }
+
+  - name: "EXP009"
+    experiment_name: "EXP009"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_9.csv" }
+
+  - name: "EXP010"
+    experiment_name: "EXP010"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_10.csv" }
+
+  # EXP011-EXP015: Algorithm baseline (KMeans, same preprocessed)
+  - name: "EXP011"
+    experiment_name: "EXP011"
+    method: "kmeans"
+    distance_metric: "euclidean"
+    kmeans: { n_clusters: 4, n_init: 20, random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP012"
+    experiment_name: "EXP012"
+    method: "kmeans"
+    distance_metric: "euclidean"
+    kmeans: { n_clusters: 6, n_init: 20, random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP013"
+    experiment_name: "EXP013"
+    method: "kmeans"
+    distance_metric: "euclidean"
+    kmeans: { n_clusters: 8, n_init: 20, random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP014"
+    experiment_name: "EXP014"
+    method: "minibatch_kmeans"
+    distance_metric: "euclidean"
+    minibatch_kmeans: { n_clusters: 6, random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP015"
+    experiment_name: "EXP015"
+    method: "kmeans"
+    distance_metric: "euclidean"
+    kmeans: { n_clusters: 6, n_init: 20, random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_2.csv" }
+
+  # EXP016-EXP020: HDBSCAN baselines (preprocessed variants)
+  - name: "EXP016"
+    experiment_name: "EXP016"
+    method: "hdbscan"
+    distance_metric: "euclidean"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP017"
+    experiment_name: "EXP017"
+    method: "hdbscan"
+    distance_metric: "euclidean"
+    hdbscan: { min_cluster_size: 30, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP018"
+    experiment_name: "EXP018"
+    method: "hdbscan"
+    distance_metric: "euclidean"
+    hdbscan: { min_cluster_size: 20, min_samples: 15 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP019"
+    experiment_name: "EXP019"
+    method: "hdbscan"
+    distance_metric: "euclidean"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  - name: "EXP020"
+    experiment_name: "EXP020"
+    method: "hdbscan"
+    distance_metric: "euclidean"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_5.csv" }
+
+  # EXP025-EXP031: OPTICS parameter sweep (trajectory fit sensitivity)
+  - name: "EXP025"
+    experiment_name: "EXP025"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 8, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP026"
+    experiment_name: "EXP026"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP027"
+    experiment_name: "EXP027"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 16, xi: 0.04, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP028"
+    experiment_name: "EXP028"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.02, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP029"
+    experiment_name: "EXP029"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.08, min_cluster_size: 0.04 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP030"
+    experiment_name: "EXP030"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.03 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP031"
+    experiment_name: "EXP031"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.06 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  # EXP032-EXP036: DBSCAN sensitivity
+  - name: "EXP032"
+    experiment_name: "EXP032"
+    method: "dbscan"
+    distance_metric: "euclidean"
+    dbscan: { eps: 150, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP033"
+    experiment_name: "EXP033"
+    method: "dbscan"
+    distance_metric: "euclidean"
+    dbscan: { eps: 200, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP034"
+    experiment_name: "EXP034"
+    method: "dbscan"
+    distance_metric: "euclidean"
+    dbscan: { eps: 250, min_samples: 10 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP035"
+    experiment_name: "EXP035"
+    method: "dbscan"
+    distance_metric: "euclidean"
+    dbscan: { eps: 200, min_samples: 12 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP036"
+    experiment_name: "EXP036"
+    method: "dbscan"
+    distance_metric: "euclidean"
+    dbscan: { eps: 200, min_samples: 8 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  # EXP042-EXP046: Agglomerative + Birch baselines
+  - name: "EXP042"
+    experiment_name: "EXP042"
+    method: "agglomerative"
+    distance_metric: "euclidean"
+    agglomerative: { n_clusters: 6, linkage: "ward" }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP043"
+    experiment_name: "EXP043"
+    method: "agglomerative"
+    distance_metric: "euclidean"
+    agglomerative: { n_clusters: 6, linkage: "average", metric: "euclidean" }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP044"
+    experiment_name: "EXP044"
+    method: "agglomerative"
+    distance_metric: "euclidean"
+    agglomerative: { n_clusters: 6, linkage: "complete", metric: "euclidean" }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP045"
+    experiment_name: "EXP045"
+    method: "agglomerative"
+    distance_metric: "euclidean"
+    agglomerative: { n_clusters: 6, linkage: "single", metric: "euclidean" }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP046"
+    experiment_name: "EXP046"
+    method: "birch"
+    distance_metric: "euclidean"
+    birch: { n_clusters: 6 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  # EXP047-EXP050: RQ7 include altitude in vector (3D)
+  - name: "EXP047"
+    experiment_name: "EXP047"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.04, min_cluster_size: 0.04 }
+    features: { vector_cols: ["x_utm", "y_utm", "altitude"] }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  - name: "EXP048"
+    experiment_name: "EXP048"
+    method: "hdbscan"
+    distance_metric: "euclidean"
+    hdbscan: { min_cluster_size: 20, min_samples: 10 }
+    features: { vector_cols: ["x_utm", "y_utm", "altitude"] }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  - name: "EXP049"
+    experiment_name: "EXP049"
+    method: "kmeans"
+    distance_metric: "euclidean"
+    kmeans: { n_clusters: 6, n_init: 20, random_state: 11 }
+    features: { vector_cols: ["x_utm", "y_utm", "altitude"] }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  - name: "EXP050"
+    experiment_name: "EXP050"
+    method: "kmeans"
+    distance_metric: "euclidean"
+    kmeans: { n_clusters: 6, n_init: 20, random_state: 11 }
+    features: { vector_cols: ["x_utm", "y_utm", "altitude"] }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_3.csv" }
+
+  # EXP037-EXP041: GMM model selection (risky, keep at end)
+  - name: "EXP037"
+    experiment_name: "EXP037"
+    method: "gmm"
+    distance_metric: "euclidean"
+    gmm: { n_components: 4, covariance_type: "full", random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP038"
+    experiment_name: "EXP038"
+    method: "gmm"
+    distance_metric: "euclidean"
+    gmm: { n_components: 6, covariance_type: "full", random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP039"
+    experiment_name: "EXP039"
+    method: "gmm"
+    distance_metric: "euclidean"
+    gmm: { n_components: 8, covariance_type: "full", random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP040"
+    experiment_name: "EXP040"
+    method: "gmm"
+    distance_metric: "euclidean"
+    gmm: { n_components: 10, covariance_type: "full", random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP041"
+    experiment_name: "EXP041"
+    method: "gmm"
+    distance_metric: "euclidean"
+    gmm: { n_components: 12, covariance_type: "full", random_state: 11 }
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  # EXP021-EXP024: DTW + DBSCAN (all flights, low-noise tuning)
+  - name: "EXP021"
+    experiment_name: "EXP021"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 62000, min_samples: 8 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP022"
+    experiment_name: "EXP022"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 68000, min_samples: 8 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP023"
+    experiment_name: "EXP023"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 74000, min_samples: 8 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP024"
+    experiment_name: "EXP024"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 68000, min_samples: 6 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+input:
+  preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+output:
+  dir: "output"
+  skip_completed: true
+
+features:
+  vector_cols: ["x_utm", "y_utm"]

@@ -1,0 +1,27 @@
+output:
+  dir: "output"
+  skip_completed: false
+
+experiments:
+  - name: "EXP151"
+    experiment_name: "EXP151"
+    method: "dbscan"
+    distance_metric: "dtw"
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    dbscan: { eps: 100000, min_samples: 160 }
+    sample_for_fit:
+      enabled: false
+      max_flights_per_flow: 900
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }

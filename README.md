@@ -1,239 +1,340 @@
-# Flight Trajectory Clustering and Noise Simulation
+# Flight Trajectory Clustering for Thesis Work
 
-Thesis codebase to match ADS-B trajectories with noise measurements, cluster flights, generate backbone tracks, and build ECAC Doc29 noise simulation inputs.
+This repository contains the thesis workflow used to:
 
-## Setup
-- Python 3.8+
-- Install deps: `pip install -r requirements.txt`
-- Optional for Parquet output: `pip install pyarrow` (or `fastparquet`)
+1. match airport noise events to ADS-B trajectories,
+2. preprocess and standardize the matched trajectories,
+3. cluster flights and derive representative backbone tracks, and
+4. prepare inputs for downstream ECAC Doc.29 noise simulation.
 
-## Pipeline at a glance
-ADS-B joblib -> (optional) Parquet -> match noise to ADS-B -> matched_trajectories CSV
--> preprocessing and clustering -> backbone tracks -> Doc29 groundtracks -> Doc29 inputs -> noise simulation -> plots
+The goal of this README is not to document every utility in the repository. It is to help a thesis reader quickly understand where the main code lives, how the folders relate to each other, and which scripts correspond to each stage of the workflow.
 
-## Inputs and outputs
-- ADS-B joblib: `adsb/*.joblib`
-- Noise Excel: `noise_data.xlsx`
-- Matched trajectories: `matched_trajectories/*.csv` (or `data/merged` if `--output-dir` is set)
-- Preprocessed output: `data/preprocessed/preprocessed_*.csv`
-- Experiment outputs: `output/experiments/<experiment>/`
-- Doc29 inputs: `noise_simulation/doc-29-implementation/Groundtracks/<EXP>` and `Flight_<EXP>.csv`
-- Doc29 results: `noise_simulation/doc-29-implementation/Results_Python/*.csv`
+## What This Repository Covers
 
-## Scripts and how to run them
-Run commands from the repo root. VS Code launch names refer to `.vscode/launch.json`.
+The implemented workflow is:
 
-### Dataset generation (ADS-B + noise)
+`raw ADS-B + noise events -> matched trajectories -> preprocessed flights -> clustering experiments -> backbone tracks -> Doc.29 preparation`
 
-#### `scripts/convert_adsb_joblib_to_csv.py`
-Purpose: Convert ADS-B joblib files to Parquet.
+The actual noise simulation model can depend on external resources and local assets that may not be distributed with the thesis-facing version of this repository. For that reason:
 
-CLI:
-```bash
-python scripts/convert_adsb_joblib_to_csv.py --input-dir adsb --glob "*.joblib" --output-dir data/adsb_parquet --chunksize 200000 --compression snappy
+- [`output/`](output/README.md) should be treated as generated content,
+- [`noise_simulation/`](noise_simulation/README.md) should be treated as the interface layer to the noise-simulation stage, and
+- some subfolders may be empty in a shared or cleaned thesis package.
+
+## Repository Structure
+
+The most important folders are:
+
+```text
+Flight__Clustering/
+|- README.md
+|- AGENTS.md
+|- requirements.txt
+|- config/
+|- scripts/
+|- backbone_tracks/
+|- clustering/
+|- experiments/
+|- matched_trajectories/
+|- data/
+|- noise_simulation/
+|- output/
+|- logs/
+|- thesis/
+|- tests/
+`- legacy/
 ```
-Single file:
+
+### Folder guide
+
+- [`config/`](config/)  
+  Main YAML configuration files for matching, preprocessing, and clustering.
+
+- [`scripts/`](scripts/)  
+  Entry-point scripts for matching, preprocessing, EDA, plotting, and experiment-grid execution.
+
+- [`backbone_tracks/`](backbone_tracks/)  
+  Core preprocessing pipeline modules: I/O, segmentation, smoothing, resampling, clustering wrapper, backbone extraction, and plotting helpers.
+
+- [`clustering/`](clustering/)  
+  Distance-matrix construction, clustering registry, and evaluation utilities.
+
+- [`experiments/`](experiments/)  
+  Experiment runner plus experiment-grid YAML files for parameter sweeps.
+
+- [`matched_trajectories/`](matched_trajectories/)  
+  Matched ADS-B trajectory snippets created after linking noise events to ADS-B data.
+
+- [`data/`](data/)  
+  Input data area. In the standardized workflow this includes ADS-B input files and preprocessed CSVs.
+
+- [`noise_simulation/`](noise_simulation/README.md)  
+  Bridge from clustering outputs to the external Doc.29 noise-simulation stage.
+
+- [`output/`](output/README.md)  
+  Generated EDA, experiments, plots, temporary files, and exported artifacts.
+
+- [`logs/`](logs/)  
+  Run logs for preprocessing, experiments, and diagnostics.
+
+- [`thesis/docs/`](thesis/docs/)  
+  Supporting documentation and registries, especially the preprocessing and experiment registries used in the thesis write-up.
+
+- [`legacy/`](legacy/)  
+  Older scripts and archived material that are not part of the main thesis workflow.
+
+## Main Workflow
+
+### 1. Match noise events to ADS-B trajectories
+
+Primary script:
+
+- [`scripts/merge_adsb_noise.py`](scripts/merge_adsb_noise.py)
+
+Batch launcher:
+
+- [`scripts/run_merge_adsb_noise_batch.py`](scripts/run_merge_adsb_noise_batch.py)
+
+Main config:
+
+- [`config/merge_adsb_noise.yaml`](config/merge_adsb_noise.yaml)
+
+Output:
+
+- matched trajectory CSVs in [`matched_trajectories/`](matched_trajectories/) or `data/merged/`, depending on the run setup.
+
+### 2. Preprocess matched trajectories
+
+Primary script:
+
+- [`scripts/save_preprocessed.py`](scripts/save_preprocessed.py)
+
+Grid runner:
+
+- [`scripts/run_preprocess_grid.py`](scripts/run_preprocess_grid.py)
+
+Core implementation:
+
+- [`backbone_tracks/io.py`](backbone_tracks/io.py)
+- [`backbone_tracks/segmentation.py`](backbone_tracks/segmentation.py)
+- [`backbone_tracks/preprocessing.py`](backbone_tracks/preprocessing.py)
+
+Main configs:
+
+- [`config/backbone_full.yaml`](config/backbone_full.yaml)
+- [`config/preprocess_grid.yaml`](config/preprocess_grid.yaml)
+
+Typical output:
+
+- `data/preprocessed/preprocessed_<id>.csv`
+
+### 3. Run clustering experiments
+
+Primary script:
+
+- [`experiments/runner.py`](experiments/runner.py)
+
+Grid runner:
+
+- [`scripts/run_experiment_grid.py`](scripts/run_experiment_grid.py)
+
+Core implementation:
+
+- [`clustering/distances.py`](clustering/distances.py)
+- [`clustering/registry.py`](clustering/registry.py)
+- [`clustering/evaluation.py`](clustering/evaluation.py)
+
+Main experiment grid:
+
+- [`experiments/experiment_grid.yaml`](experiments/experiment_grid.yaml)
+
+Typical output:
+
+- `output/experiments/EXP###/`
+
+### 4. Build backbone tracks and visualize clustered flows
+
+Main scripts:
+
+- [`scripts/cli.py`](scripts/cli.py)
+- [`scripts/plot_backbone_tracks.py`](scripts/plot_backbone_tracks.py)
+- [`scripts/plot_exp_latlon_flows.py`](scripts/plot_exp_latlon_flows.py)
+
+Core implementation:
+
+- [`backbone_tracks/backbone.py`](backbone_tracks/backbone.py)
+- [`backbone_tracks/plots.py`](backbone_tracks/plots.py)
+
+### 5. Prepare for noise simulation
+
+Main scripts:
+
+- [`noise_simulation/generate_doc29_inputs.py`](noise_simulation/generate_doc29_inputs.py)
+- [`noise_simulation/run_doc29_experiment.py`](noise_simulation/run_doc29_experiment.py)
+- [`noise_simulation/run_doc29_ground_truth.py`](noise_simulation/run_doc29_ground_truth.py)
+- [`noise_simulation/compare_experiment_totals.py`](noise_simulation/compare_experiment_totals.py)
+
+Important note:
+
+- the actual simulation backend and some required assets may be external to this repository; see [`noise_simulation/README.md`](noise_simulation/README.md).
+
+## Thesis-Oriented Script Guide
+
+If a reader wants to understand the thesis pipeline quickly, these are the first files to open:
+
+- Matching logic: [`scripts/merge_adsb_noise.py`](scripts/merge_adsb_noise.py)
+- Preprocessing entry point: [`scripts/save_preprocessed.py`](scripts/save_preprocessed.py)
+- Segmentation rules: [`backbone_tracks/segmentation.py`](backbone_tracks/segmentation.py)
+- Smoothing and resampling: [`backbone_tracks/preprocessing.py`](backbone_tracks/preprocessing.py)
+- Experiment execution: [`experiments/runner.py`](experiments/runner.py)
+- Distance metrics: [`clustering/distances.py`](clustering/distances.py)
+- Metric evaluation: [`clustering/evaluation.py`](clustering/evaluation.py)
+- Backbone extraction: [`backbone_tracks/backbone.py`](backbone_tracks/backbone.py)
+- Noise-simulation interface: [`noise_simulation/generate_doc29_inputs.py`](noise_simulation/generate_doc29_inputs.py)
+
+## Important Config Files
+
+- [`config/merge_adsb_noise.yaml`](config/merge_adsb_noise.yaml)  
+  Matching parameters such as temporal tolerance, bounding-box buffer, trajectory extraction window, and airport-distance cutoff.
+
+- [`config/backbone_full.yaml`](config/backbone_full.yaml)  
+  Main preprocessing and clustering configuration used for the full standardized workflow.
+
+- [`config/backbone.yaml`](config/backbone.yaml)  
+  Smaller or test-oriented backbone pipeline configuration.
+
+- [`config/preprocess_grid.yaml`](config/preprocess_grid.yaml)  
+  Grid of preprocessing variants.
+
+- [`experiments/experiment_grid.yaml`](experiments/experiment_grid.yaml)  
+  Main experiment grid for clustering studies.
+
+For a structured YAML reference, see:
+
+- [`config/README.md`](config/README.md)
+- [`experiments/README.md`](experiments/README.md)
+- [`config/examples/`](config/examples/)
+- [`experiments/examples/`](experiments/examples/)
+
+## YAML Templates and How to Reuse Them
+
+If a reader wants to run the workflow on another machine, the recommended approach is to copy one of the example YAMLs instead of editing the production files directly.
+
+### Matching template
+
+- [`config/examples/merge_adsb_noise.example.yaml`](config/examples/merge_adsb_noise.example.yaml)
+
+Used with:
+
 ```bash
-python scripts/convert_adsb_joblib_to_csv.py --joblib adsb/data_2022_april.joblib --output-dir data/adsb_parquet
+python scripts/run_merge_adsb_noise_batch.py -c path/to/your_merge_adsb_noise.yaml
 ```
-VS Code launch: `Convert ADSB Joblib to Parquet (April)`
 
-#### `scripts/merge_adsb_noise.py`
-Purpose: Match noise measurements (noise_data.xlsx) to ADS-B joblib and write matched trajectories to Parquet + CSV.
+### Preprocessing template
 
-CLI:
+- [`config/examples/backbone_full.example.yaml`](config/examples/backbone_full.example.yaml)
+
+Used with:
+
 ```bash
-python scripts/merge_adsb_noise.py noise_data.xlsx adsb/data_2022_april.joblib --traj-output matched_trajs_april_2022.parquet --output-dir data/merged --tol-sec 10 --buffer-frac 0.5 --window-min 3 --max-airport-distance-km 25
+python scripts/save_preprocessed.py -c path/to/your_backbone_full.yaml
 ```
-Matching logic (defaults):
-- Time match window: keep ADS-B samples with `|t - t_ref| <= 10 s`.
-- Spatial match window: let `d = Abstand [m]`, `r = d * (1 + 0.5) = 1.5 d`. Convert to degrees:
-  - `dlat = r / 111195`
-  - `dlon = dlat / cos(lat0)`
-  Keep samples with `lat in [lat0 - dlat, lat0 + dlat]` and `lon in [lon0 - dlon, lon0 + dlon]`.
-- If any hits exist, the first hit provides `icao24`/`callsign` for that noise row.
-- Trajectory window: keep samples with `|t - t_ref| <= 3 min`, filtered to the matched `icao24`/`callsign` when available.
-- Airport filter: compute UTM distance `d_airport = sqrt((x-ax)^2 + (y-ay)^2)` and keep `d_airport <= 25000 m`.
-- Downsample: keep at most one sample every `2 s` by 2-second time bins.
-- Deduplicate: drop duplicates by `(MP, t_ref, icao24, timestamp)`.
-VS Code launch: `Python Debugger: Current File with Arguments` (open `scripts/merge_adsb_noise.py` first)
 
-#### `scripts/run_merge_adsb_noise_batch.py`
-Purpose: Batch matching for multiple joblibs via config.
+### Preprocess-grid template
 
-CLI:
+- [`config/examples/preprocess_grid.example.yaml`](config/examples/preprocess_grid.example.yaml)
+
+Used with:
+
+```bash
+python scripts/run_preprocess_grid.py --grid path/to/your_preprocess_grid.yaml
+```
+
+### Experiment-grid template
+
+- [`experiments/examples/experiment_grid.example.yaml`](experiments/examples/experiment_grid.example.yaml)
+
+Used with:
+
+```bash
+python scripts/run_experiment_grid.py --grid path/to/your_experiment_grid.yaml
+```
+
+### What fields can be changed?
+
+The field-level reference is documented here:
+
+- matching and preprocessing configs: [`config/README.md`](config/README.md)
+- experiment-grid configs: [`experiments/README.md`](experiments/README.md)
+
+These two documents explain:
+
+- which top-level keys are expected,
+- which options are supported for smoothing, resampling, clustering method, and distance metric,
+- which YAMLs are canonical thesis configs,
+- and which example YAMLs are the safest starting point for a new user.
+
+## Generated and External Folders
+
+Some folders are generated during runs and may be empty in a clean copy:
+
+- [`output/`](output/README.md)
+- [`logs/`](logs/)
+
+Some folders may require local or external resources that are not bundled with the thesis package:
+
+- [`noise_simulation/`](noise_simulation/README.md)
+- [`noise_simulation/doc-29-implementation/`](noise_simulation/doc-29-implementation/README.md)
+
+## Supporting Documentation
+
+Useful thesis-facing documents:
+
+- [`thesis/docs/preprocessed_registry.md`](thesis/docs/preprocessed_registry.md)
+- [`thesis/docs/CODEBASE_OVERVIEW.md`](thesis/docs/CODEBASE_OVERVIEW.md)
+- [`CHANGELOG_STANDARDIZATION.md`](CHANGELOG_STANDARDIZATION.md)
+
+## Running the Main Steps
+
+Commands are run from the repository root.
+
+### Match ADS-B and noise data
+
 ```bash
 python scripts/run_merge_adsb_noise_batch.py -c config/merge_adsb_noise.yaml
 ```
-VS Code launch: none
 
-### Preprocessing and backbone clustering
+### Save one preprocessed dataset
 
-#### `scripts/save_preprocessed.py`
-Purpose: Run segmentation + preprocessing only and save `data/preprocessed/preprocessed_*.csv`.
-
-CLI:
 ```bash
 python scripts/save_preprocessed.py -c config/backbone_full.yaml
 ```
-VS Code launch: `Save Preprocessed Data`
 
-#### `scripts/run_preprocess_grid.py`
-Purpose: Run a standardized preprocessing grid (n_points, interpolation, smoothing).
+### Run a preprocessing grid
 
-CLI:
 ```bash
 python scripts/run_preprocess_grid.py --grid config/preprocess_grid.yaml
 ```
-VS Code launch: `Run Preprocess Grid`
 
-#### `scripts/cli.py`
-Purpose: Full backbone pipeline (load, segment, preprocess, cluster, backbone export).
+### Run an experiment grid
 
-CLI:
-```bash
-python scripts/cli.py -c config/backbone_full.yaml
-```
-Test mode config:
-```bash
-python scripts/cli.py -c config/backbone.yaml
-```
-VS Code launch: `Backbone Clustering (Full Mode)` and `Backbone Clustering (Test Mode)`
-
-#### `experiments/runner.py`
-Purpose: Run extended clustering + evaluation on a preprocessed CSV.
-
-CLI:
-```bash
-python experiments/runner.py -c config/experiments/global_optics.yaml --preprocessed data/preprocessed/preprocessed_1.csv
-```
-VS Code launch: `Experiment Runner - OPTICS`, `Experiment Runner - DBSCAN`, `Experiment Runner - HDBSCAN`, `Experiment Runner - KMeans`, `Experiment Runner - Agglomerative`, and `Experiment Runner - GLOBAL OPTICS/DBSCAN/HDBSCAN/KMeans/Agglomerative`
-
-#### `scripts/run_experiment_grid.py`
-Purpose: Run parameter sweeps defined in a grid YAML.
-
-CLI:
 ```bash
 python scripts/run_experiment_grid.py --grid experiments/experiment_grid.yaml
 ```
-VS Code launch: `Run Experiment Grid`
 
-#### `scripts/eda_raw_lengths.py`
-Purpose: Pre-assess raw flight length distribution before preprocessing filters.
+### Plot experiment-level clustered flows
 
-CLI:
 ```bash
-python scripts/eda_raw_lengths.py -c config/backbone_full.yaml --outdir output/eda/raw_lengths
+python scripts/plot_exp_latlon_flows.py EXP001
 ```
-VS Code launch: `EDA Raw Flight Lengths`
 
-### Visualization and reporting
+## Development Notes
 
-#### `scripts/plot_experiment_results.py`
-Purpose: Plot experiment metrics, trajectories, and derived backbones under `output/experiments/<experiment>/plots`.
+- The standardized experiment outputs are expected under `output/experiments/<EXP>/`.
+- The standardized EDA outputs are expected under `output/eda/`.
+- The thesis workflow uses UTM coordinates for clustering-distance calculations.
+- Only the four operational runways `09L`, `09R`, `27L`, and `27R` are treated as the standard runway set unless a script explicitly states otherwise.
 
-CLI:
-```bash
-python scripts/plot_experiment_results.py EXP77 --max-flights-per-cluster 30
-```
-VS Code launch: `Plot Experiment Results` and `Generate Backbone Tracks`
+## VS Code Launch Configurations
 
-Note: the legacy script `scripts/plot_exp_latlon.py` was archived to `legacy/scripts/`.
-
-#### `scripts/plot_backbone_tracks.py`
-Purpose: Generate backbone tracks per flow/cluster (lat/lon) and Doc29-style arrival overlays.
-
-CLI:
-```bash
-python scripts/plot_backbone_tracks.py --experiment EXP77 --arrival-scheme seven
-```
-VS Code launch: `Plot Backbone Tracks (Lat/Lon)`
-
-### Noise simulation (Doc29)
-
-#### `scripts/doc29_tracks.py`
-Purpose: Create Doc29 7-track layouts (center + offsets) from preprocessed data and optionally export groundtrack CSVs.
-
-CLI:
-```bash
-python scripts/doc29_tracks.py --preprocessed data/preprocessed/preprocessed_1.csv --all-flows --export-dir output/eda/doc29_tracks --out output/eda/doc29_tracks.png
-```
-With cluster labels:
-```bash
-python scripts/doc29_tracks.py --preprocessed data/preprocessed/preprocessed_1.csv --labels output/experiments/EXP77 --all-flows --export-dir output/eda/doc29_tracks
-```
-Note: preprocessed CSV must include `x_utm`, `y_utm`, `step`, `flight_id`, `A/D`, and `Runway` (generated when `coordinates.use_utm: true`).
-VS Code launch: none
-
-#### `noise_simulation/generate_doc29_inputs.py`
-Purpose: Convert exported groundtracks into Doc29 inputs (Groundtracks + Flight_EXP*.csv).
-
-CLI:
-```bash
-python noise_simulation/generate_doc29_inputs.py --tracks-root output/eda/doc29_tracks --preprocessed data/preprocessed/preprocessed_1.csv --experiment-name EXP46 --output-root noise_simulation/doc-29-implementation --combine
-```
-VS Code launch: none
-
-#### `noise_simulation/doc-29-implementation/main.py`
-Purpose: Run the Doc29 noise calculation.
-
-How to run:
-- Edit `noise_simulation/doc-29-implementation/main.py` to set `input_file_flights` and output file name.
-- Then run:
-```bash
-python noise_simulation/doc-29-implementation/main.py
-```
-See `noise_simulation/doc-29-implementation/README.md` for model details and required assets.
-VS Code launch: none
-
-#### `noise_simulation/compare_experiment_totals.py`
-Purpose: Fair per-experiment totals comparison between clustered prediction and individual-flight ground truth.
-
-CLI:
-```bash
-python noise_simulation/compare_experiment_totals.py --summary noise_simulation/results/EXP001/summary_mse.csv --out noise_simulation/results/EXP001/aggregate_totals --subtracks-weighting weighted
-```
-Key outputs:
-- `overall_aligned_9points.csv` (9 receiver points side-by-side)
-- `overall_summary.json` (MAE/MSE/RMSE and average cumulative level delta)
-
-#### `scripts/plot_noise_results.py`
-Purpose: Plot noise simulation results from `Results_Python/*.csv`.
-
-CLI:
-```bash
-python scripts/plot_noise_results.py noise_simulation/doc-29-implementation/Results_Python/EXP46.csv --column cumulative_res --mode contour
-```
-VS Code launch: none
-
-#### `scripts/plot_metrics_doc29.py`
-Purpose: Plot Doc29 experiment metrics.
-
-CLI:
-```bash
-python scripts/plot_metrics_doc29.py --stage2 output/eda/metrics_stage2_by_flow.csv --quality output/eda/metrics_quality_global.csv --out-dir output/eda/figures
-```
-VS Code launch: none
-
-## Key config files
-- `config/merge_adsb_noise.yaml`: batch matching settings
-- `config/backbone.yaml`: test-mode clustering pipeline
-- `config/backbone_full.yaml`: full clustering pipeline
-- `config/experiments/global_*.yaml`: global experiment configs
-- `experiments/named_experiments.yaml`: grid sweep definitions
-- `config/backbone_legacy.yaml`: legacy backbone tracks config
-
-## Config tips
-- If you store matched trajectories in a different folder, update `input.csv_glob` in `config/backbone_full.yaml` and `config/backbone.yaml`.
-
-## Slurm helpers
-- `jobs/run_adsb_joblib_to_csv.job`: convert all joblib files in a directory (usage: `sbatch jobs/run_adsb_joblib_to_csv.job /path/to/joblib_dir`)
-- `jobs/run_merge_adsb_noise.job`: single-month noise matching
-- `jobs/run_preprocessing_grid.job`: preprocessing grid
-- `jobs/run_experiment_grid.job`: experiment grid
-- `jobs/run_adsb_monthly_eda.job`: monthly ADS-B EDA
-- `jobs/run_doc29_ground_truth.job`: batched Doc29 ground truth
-- `jobs/run_doc29_experiment.job`: Doc29 experiment runner
-- `jobs/run_doc29_compare_totals.job`: totals comparison (cluster vs ground truth)
-
-Archived jobs/scripts are under `legacy/`.
+The repository already contains launch configurations in [`.vscode/launch.json`](.vscode/launch.json). These are useful if the reader wants to reproduce the main stages without rebuilding command lines manually.

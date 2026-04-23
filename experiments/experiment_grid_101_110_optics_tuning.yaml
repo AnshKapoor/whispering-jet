@@ -1,0 +1,222 @@
+experiments:
+  # OPTICS tuning block on preprocessed_1 with 500 flights/flow sample.
+  # Tighter bounds around prior best-behaving settings.
+  # EXP101-EXP105: Euclidean OPTICS sweep (tight range)
+  - name: "EXP101"
+    experiment_name: "EXP101"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.05, min_cluster_size: 0.04 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP102"
+    experiment_name: "EXP102"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 12, xi: 0.06, min_cluster_size: 0.04 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP103"
+    experiment_name: "EXP103"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 14, xi: 0.06, min_cluster_size: 0.05 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP104"
+    experiment_name: "EXP104"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 16, xi: 0.06, min_cluster_size: 0.05 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP105"
+    experiment_name: "EXP105"
+    method: "optics"
+    distance_metric: "euclidean"
+    optics: { min_samples: 16, xi: 0.08, min_cluster_size: 0.06 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  # EXP106-EXP110: DTW OPTICS sweep (tight range)
+  - name: "EXP106"
+    experiment_name: "EXP106"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 10, xi: 0.06, min_cluster_size: 0.04 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP107"
+    experiment_name: "EXP107"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 12, xi: 0.06, min_cluster_size: 0.04 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP108"
+    experiment_name: "EXP108"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 12, xi: 0.08, min_cluster_size: 0.04 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP109"
+    experiment_name: "EXP109"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 14, xi: 0.08, min_cluster_size: 0.05 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  - name: "EXP110"
+    experiment_name: "EXP110"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 16, xi: 0.10, min_cluster_size: 0.06 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+  # EXP152: DTW OPTICS large-cluster stress test
+  - name: "EXP152"
+    experiment_name: "EXP152"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 50, xi: 0.06, min_cluster_size: 100 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+input:
+  preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+output:
+  dir: "output"
+  skip_completed: false
+
+features:
+  vector_cols: ["x_utm", "y_utm"]

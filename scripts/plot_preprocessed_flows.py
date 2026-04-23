@@ -21,19 +21,64 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def _is_aircraft_type_match(series: pd.Series) -> pd.Series:
+    """Return a boolean mask for truthy aircraft-type matches."""
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    truthy_numeric = numeric.eq(1.0)
+    truthy_text = (
+        series.astype("string")
+        .str.strip()
+        .str.lower()
+        .isin({"true", "1", "yes"})
+    )
+    return truthy_numeric | truthy_text
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot preprocessed trajectories by flow.")
     parser.add_argument("--csv", required=True, help="Preprocessed CSV path.")
     parser.add_argument("--per-flow", type=int, default=200, help="Flights per flow to plot.")
     parser.add_argument("--seed", type=int, default=11, help="Random seed for sampling.")
     parser.add_argument("--out", default=None, help="Output PNG path.")
+    parser.add_argument(
+        "--aircraft-type-match-filter",
+        choices=["all", "matched", "unmatched"],
+        default="all",
+        help="Filter flights by aircraft_type_match status. "
+        "'matched' keeps only true/1, 'unmatched' keeps false/0 and missing.",
+    )
+    parser.add_argument(
+        "--separate-only",
+        action="store_true",
+        help="Write only arrivals/departures figures, not the mixed overview.",
+    )
     args = parser.parse_args()
 
     csv_path = Path(args.csv)
     if not csv_path.exists():
         raise FileNotFoundError(csv_path)
 
-    df = pd.read_csv(csv_path, usecols=["flight_id", "A/D", "Runway", "latitude", "longitude"])
+    df = pd.read_csv(
+        csv_path,
+        usecols=["flight_id", "A/D", "Runway", "latitude", "longitude", "aircraft_type_match"],
+    )
+    flight_match = (
+        df.groupby("flight_id", sort=False)["aircraft_type_match"]
+        .first()
+        .pipe(_is_aircraft_type_match)
+    )
+    if args.aircraft_type_match_filter == "matched":
+        keep_ids = set(flight_match[flight_match].index.astype(int).tolist())
+        df = df[df["flight_id"].isin(keep_ids)].copy()
+        if df.empty:
+            raise ValueError("No flights left after filtering aircraft_type_match == true.")
+    elif args.aircraft_type_match_filter == "unmatched":
+        keep_ids = set(flight_match[~flight_match].index.astype(int).tolist())
+        df = df[df["flight_id"].isin(keep_ids)].copy()
+        if df.empty:
+            raise ValueError("No flights left after filtering aircraft_type_match == false/missing.")
+
     df["flow_label"] = df["A/D"].astype(str).str.strip() + "_" + df["Runway"].astype(str).str.strip()
 
     # Sample flight IDs per flow
@@ -80,6 +125,13 @@ def main() -> None:
         else:
             color_map[flow] = group_colors[idx]
 
+    if args.aircraft_type_match_filter == "matched":
+        title_filter = "matched aircraft types only"
+    elif args.aircraft_type_match_filter == "unmatched":
+        title_filter = "unmatched or missing aircraft types only"
+    else:
+        title_filter = "all flights"
+
     def plot_subset(subset_df: pd.DataFrame, title_suffix: str, out_path: Path) -> None:
         fig, ax = plt.subplots(figsize=(10, 8))
         subset_flows = sorted(subset_df["flow_label"].unique())
@@ -98,7 +150,10 @@ def main() -> None:
 
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
-        ax.set_title(f"Preprocessed trajectories {title_suffix} (sampled {args.per_flow}/flow)")
+        ax.set_title(
+            f"Preprocessed trajectories {title_suffix} ({title_filter})\n"
+            f"sampled {args.per_flow}/flow"
+        )
         ax.legend(loc="upper right", fontsize=8, frameon=True)
         ax.grid(True, alpha=0.3)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -121,7 +176,8 @@ def main() -> None:
 
     plot_subset(arrivals, "arrivals only", out_dir / f"{base_stem}_arrivals.png")
     plot_subset(departures, "departures only", out_dir / f"{base_stem}_departures.png")
-    plot_subset(sample_df, "arrivals + departures", out_dir / f"{base_stem}_mixed.png")
+    if not args.separate_only:
+        plot_subset(sample_df, "arrivals + departures", out_dir / f"{base_stem}_mixed.png")
 
 
 if __name__ == "__main__":

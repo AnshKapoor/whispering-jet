@@ -1,0 +1,35 @@
+experiments:
+  - name: "EXP045"
+    experiment_name: "EXP045"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 10
+      min_samples: 4
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.0
+    distance_params:
+      dense_precomputed: true
+      dtw_window_size: 10
+      use_lb_keogh: false
+    evaluation:
+      include_noise: false
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input:
+      preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+input:
+  preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+output:
+  dir: "output"
+  skip_completed: false
+
+features:
+  vector_cols: ["x_utm", "y_utm"]

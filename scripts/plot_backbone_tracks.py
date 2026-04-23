@@ -63,6 +63,28 @@ def _cluster_colors(cluster_ids: Iterable[int]) -> Dict[int, Tuple[float, float,
     return colors
 
 
+def _apply_latlon_padding(
+    ax: plt.Axes,
+    longitude: Iterable[float],
+    latitude: Iterable[float],
+    pad_ratio: float = 0.35,
+    min_pad: float = 0.005,
+) -> None:
+    """Set padded lon/lat limits so tracks do not fill the full frame."""
+
+    lon = np.asarray(list(longitude), dtype=float)
+    lat = np.asarray(list(latitude), dtype=float)
+    if lon.size == 0 or lat.size == 0:
+        return
+
+    min_lon, max_lon = float(np.min(lon)), float(np.max(lon))
+    min_lat, max_lat = float(np.min(lat)), float(np.max(lat))
+    pad_lon = max((max_lon - min_lon) * pad_ratio, min_pad)
+    pad_lat = max((max_lat - min_lat) * pad_ratio, min_pad)
+    ax.set_xlim(min_lon - pad_lon, max_lon + pad_lon)
+    ax.set_ylim(min_lat - pad_lat, max_lat + pad_lat)
+
+
 def _doc29_tracks_utm(df_flow: pd.DataFrame) -> Dict[str, np.ndarray]:
     # Median backbone per step in UTM
     bb = df_flow.groupby("step")[["x_utm", "y_utm"]].median().reset_index().sort_values("step")
@@ -116,6 +138,9 @@ def _plot_backbone_cluster(
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.set_aspect("equal", adjustable="box")
+    all_lon = pd.concat([p10["longitude"], p50["longitude"], p90["longitude"]], ignore_index=True)
+    all_lat = pd.concat([p10["latitude"], p50["latitude"], p90["latitude"]], ignore_index=True)
+    _apply_latlon_padding(ax, all_lon, all_lat)
     ax.grid(True, color="#ececec", lw=0.8)
     ax.legend()
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,20 +192,13 @@ def _plot_doc29_arrival(
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.set_aspect("equal", adjustable="box")
-    # Widen the view by adding padding around the extents.
     all_lon = []
     all_lat = []
     for coords in tracks.values():
         lon, lat = transformer.transform(coords[:, 0], coords[:, 1])
         all_lon.extend(lon)
         all_lat.extend(lat)
-    if all_lon and all_lat:
-        min_lon, max_lon = min(all_lon), max(all_lon)
-        min_lat, max_lat = min(all_lat), max(all_lat)
-        pad_lon = (max_lon - min_lon) * 0.08
-        pad_lat = (max_lat - min_lat) * 0.08
-        ax.set_xlim(min_lon - pad_lon, max_lon + pad_lon)
-        ax.set_ylim(min_lat - pad_lat, max_lat + pad_lat)
+    _apply_latlon_padding(ax, all_lon, all_lat)
     ax.grid(True, color="#ececec", lw=0.8)
     ax.legend(loc="best", fontsize=8)
     out_path.parent.mkdir(parents=True, exist_ok=True)
