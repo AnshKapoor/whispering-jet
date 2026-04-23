@@ -265,14 +265,22 @@ def pairwise_distance_matrix(
 
     metric = metric.lower()
     params = params or {}
+    dense_precomputed = bool(params.get("dense_precomputed", False))
     if cache_dir and flow_name:
         cache_dir.mkdir(parents=True, exist_ok=True)
         hash_ids = cache_ids if cache_ids is not None else range(len(trajectories))
         key = _hash_config(flow_name, metric, params, hash_ids)
         if metric in {"dtw", "frechet"}:
-            cache_path = cache_dir / f"dist_{key}.npz"
-            if cache_path.exists():
-                return load_npz(cache_path)
+            if dense_precomputed:
+                cache_path = cache_dir / f"dist_{key}.npy"
+                if cache_path.exists():
+                    D = np.load(cache_path)
+                    np.fill_diagonal(D, 0.0)
+                    return D
+            else:
+                cache_path = cache_dir / f"dist_{key}.npz"
+                if cache_path.exists():
+                    return load_npz(cache_path)
         else:
             cache_path = cache_dir / f"dist_{key}.npy"
             if cache_path.exists():
@@ -303,102 +311,155 @@ def pairwise_distance_matrix(
             raise ValueError(f"{metric} distance requires a sequence of (T,D) trajectories.")
         n = len(trajectories)
         if n <= 1:
+            if dense_precomputed:
+                return np.zeros((n, n), dtype=float)
             return coo_matrix((n, n)).tocsr()
 
-        k = int(params.get("candidate_k", params.get("knn_k", 30)))
-        min_required_neighbors = int(params.get("min_required_neighbors", 1))
-        if min_required_neighbors > 1:
-            # Keep precomputed sparse graph compatible with neighbor-based methods
-            # (e.g. OPTICS min_samples).
-            k = max(k, min_required_neighbors)
-        k = max(1, min(k, n - 1))
-        n_jobs = params.get("n_jobs")
-        Z = _trajectory_knn_embedding(trajectories, params)
-        edges, knn_dists = _build_knn_edges(
-            Z,
-            k=k,
-            n_jobs=n_jobs,
-        )
-        tau = _estimate_tau(knn_dists, params)
-        batch_size = int(params.get("batch_size", 10000))
+        if dense_precomputed:
+            batch_size = int(params.get("batch_size", 10000))
+            n_jobs = params.get("n_jobs")
+            if metric == "dtw":
+                w = params.get("dtw_window_size", params.get("window", 8))
+                w = int(w) if w is not None else 8
+            else:
+                rdp_epsilon = float(params.get("rdp_epsilon", 50.0))
+                simplified = [rdp(np.asarray(t, dtype=float), rdp_epsilon) for t in trajectories]
 
-        if metric == "dtw":
-            w = params.get("dtw_window_size", params.get("window", 8))
-            w = int(w) if w is not None else 8
-            use_lb = bool(params.get("use_lb_keogh", True))
-            lb_radius = params.get("lb_keogh_radius")
-            if lb_radius is None and use_lb:
-                lb_radius = w
-        else:
-            rdp_epsilon = float(params.get("rdp_epsilon", 50.0))
-            simplified = [rdp(np.asarray(t, dtype=float), rdp_epsilon) for t in trajectories]
-
-        logger.info(
-            "Computing %s distances on %d candidate edges (k=%d, n=%d).",
-            metric,
-            len(edges),
-            k,
-            n,
-        )
-        if metric == "dtw":
-            logger.info("DTW band w=%s, tau=%s, lb_keogh=%s", w, tau, use_lb)
-        else:
-            logger.info("Frechet RDP epsilon=%.2f, tau=%s", rdp_epsilon, tau)
-
-        def _compute_batch(batch_edges: list[tuple[int, int]]) -> list[tuple[int, int, float]]:
-            results: list[tuple[int, int, float]] = []
-            for i, j in batch_edges:
-                if metric == "dtw":
-                    if use_lb and tau is not None and lb_radius is not None:
-                        try:
-                            if lb_keogh(trajectories[i], trajectories[j], int(lb_radius)) > (tau * tau):
-                                continue
-                        except Exception:
-                            # Variable-length trajectories can break LB-Keogh envelope
-                            # construction at sequence boundaries; skip pruning in that case.
-                            pass
-                    d = dtw_banded(trajectories[i], trajectories[j], w=int(w), tau=tau)
-                else:
-                    d = frechet_discrete(simplified[i], simplified[j], tau=tau)
-                if np.isfinite(d):
-                    results.append((i, j, float(d)))
-            return results
-
-        start = time.perf_counter()
-        if n_jobs and int(n_jobs) != 1:
-            from joblib import Parallel, delayed
-
-            batches = [edges[i : i + batch_size] for i in range(0, len(edges), batch_size)]
-            results_nested = Parallel(n_jobs=int(n_jobs), prefer="processes")(
-                delayed(_compute_batch)(batch) for batch in batches
+            edges = [(i, j) for i in range(n) for j in range(i + 1, n)]
+            logger.info(
+                "Computing %s dense distances on all %d pairs (n=%d).",
+                metric,
+                len(edges),
+                n,
             )
-            results = [item for batch in results_nested for item in batch]
-        else:
-            results = _compute_batch(edges)
 
-        rows: list[int] = []
-        cols: list[int] = []
-        data: list[float] = []
-        for i, j, d in results:
-            rows.extend([i, j])
-            cols.extend([j, i])
-            data.extend([d, d])
-        if n:
-            rows.extend(range(n))
-            cols.extend(range(n))
-            data.extend([0.0] * n)
-        D = coo_matrix((data, (rows, cols)), shape=(n, n)).tocsr()
-        try:
-            D = sort_graph_by_row_values(D, warn_when_not_sorted=False)
-        except Exception:
-            # Older sklearn builds may not expose this helper.
-            pass
-        logger.info(
-            "Computed %s sparse distances in %.1fs (edges kept=%d).",
-            metric,
-            time.perf_counter() - start,
-            len(results),
-        )
+            def _compute_dense_batch(batch_edges: list[tuple[int, int]]) -> list[tuple[int, int, float]]:
+                results: list[tuple[int, int, float]] = []
+                for i, j in batch_edges:
+                    if metric == "dtw":
+                        d = dtw_banded(trajectories[i], trajectories[j], w=int(w), tau=None)
+                    else:
+                        d = frechet_discrete(simplified[i], simplified[j], tau=None)
+                    results.append((i, j, float(d)))
+                return results
+
+            start = time.perf_counter()
+            if n_jobs and int(n_jobs) != 1:
+                from joblib import Parallel, delayed
+
+                batches = [edges[i : i + batch_size] for i in range(0, len(edges), batch_size)]
+                results_nested = Parallel(n_jobs=int(n_jobs), prefer="processes")(
+                    delayed(_compute_dense_batch)(batch) for batch in batches
+                )
+                results = [item for batch in results_nested for item in batch]
+            else:
+                results = _compute_dense_batch(edges)
+
+            D = np.zeros((n, n), dtype=float)
+            for i, j, d in results:
+                D[i, j] = D[j, i] = d
+            np.fill_diagonal(D, 0.0)
+            logger.info(
+                "Computed %s dense distances in %.1fs.",
+                metric,
+                time.perf_counter() - start,
+            )
+        else:
+
+            k = int(params.get("candidate_k", params.get("knn_k", 30)))
+            min_required_neighbors = int(params.get("min_required_neighbors", 1))
+            if min_required_neighbors > 1:
+                # Keep precomputed sparse graph compatible with neighbor-based methods
+                # (e.g. OPTICS min_samples).
+                k = max(k, min_required_neighbors)
+            k = max(1, min(k, n - 1))
+            n_jobs = params.get("n_jobs")
+            Z = _trajectory_knn_embedding(trajectories, params)
+            edges, knn_dists = _build_knn_edges(
+                Z,
+                k=k,
+                n_jobs=n_jobs,
+            )
+            tau = _estimate_tau(knn_dists, params)
+            batch_size = int(params.get("batch_size", 10000))
+
+            if metric == "dtw":
+                w = params.get("dtw_window_size", params.get("window", 8))
+                w = int(w) if w is not None else 8
+                use_lb = bool(params.get("use_lb_keogh", True))
+                lb_radius = params.get("lb_keogh_radius")
+                if lb_radius is None and use_lb:
+                    lb_radius = w
+            else:
+                rdp_epsilon = float(params.get("rdp_epsilon", 50.0))
+                simplified = [rdp(np.asarray(t, dtype=float), rdp_epsilon) for t in trajectories]
+
+            logger.info(
+                "Computing %s distances on %d candidate edges (k=%d, n=%d).",
+                metric,
+                len(edges),
+                k,
+                n,
+            )
+            if metric == "dtw":
+                logger.info("DTW band w=%s, tau=%s, lb_keogh=%s", w, tau, use_lb)
+            else:
+                logger.info("Frechet RDP epsilon=%.2f, tau=%s", rdp_epsilon, tau)
+
+            def _compute_batch(batch_edges: list[tuple[int, int]]) -> list[tuple[int, int, float]]:
+                results: list[tuple[int, int, float]] = []
+                for i, j in batch_edges:
+                    if metric == "dtw":
+                        if use_lb and tau is not None and lb_radius is not None:
+                            try:
+                                if lb_keogh(trajectories[i], trajectories[j], int(lb_radius)) > (tau * tau):
+                                    continue
+                            except Exception:
+                                # Variable-length trajectories can break LB-Keogh envelope
+                                # construction at sequence boundaries; skip pruning in that case.
+                                pass
+                        d = dtw_banded(trajectories[i], trajectories[j], w=int(w), tau=tau)
+                    else:
+                        d = frechet_discrete(simplified[i], simplified[j], tau=tau)
+                    if np.isfinite(d):
+                        results.append((i, j, float(d)))
+                return results
+
+            start = time.perf_counter()
+            if n_jobs and int(n_jobs) != 1:
+                from joblib import Parallel, delayed
+
+                batches = [edges[i : i + batch_size] for i in range(0, len(edges), batch_size)]
+                results_nested = Parallel(n_jobs=int(n_jobs), prefer="processes")(
+                    delayed(_compute_batch)(batch) for batch in batches
+                )
+                results = [item for batch in results_nested for item in batch]
+            else:
+                results = _compute_batch(edges)
+
+            rows: list[int] = []
+            cols: list[int] = []
+            data: list[float] = []
+            for i, j, d in results:
+                rows.extend([i, j])
+                cols.extend([j, i])
+                data.extend([d, d])
+            if n:
+                rows.extend(range(n))
+                cols.extend(range(n))
+                data.extend([0.0] * n)
+            D = coo_matrix((data, (rows, cols)), shape=(n, n)).tocsr()
+            try:
+                D = sort_graph_by_row_values(D, warn_when_not_sorted=False)
+            except Exception:
+                # Older sklearn builds may not expose this helper.
+                pass
+            logger.info(
+                "Computed %s sparse distances in %.1fs (edges kept=%d).",
+                metric,
+                time.perf_counter() - start,
+                len(results),
+            )
     elif metric == "lcss":
         if isinstance(trajectories, np.ndarray):
             raise ValueError("lcss distance requires a sequence of (T,D) trajectories.")
@@ -451,7 +512,10 @@ def pairwise_distance_matrix(
 
     if cache_dir and flow_name:
         if metric in {"dtw", "frechet"}:
-            save_npz(cache_dir / f"dist_{key}.npz", D)
+            if dense_precomputed:
+                np.save(cache_dir / f"dist_{key}.npy", D)
+            else:
+                save_npz(cache_dir / f"dist_{key}.npz", D)
         else:
             np.save(cache_dir / f"dist_{key}.npy", D)
     return D

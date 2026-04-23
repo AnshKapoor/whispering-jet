@@ -183,6 +183,30 @@ experiments:
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
     features: { vector_cols: ["x_utm", "y_utm"] }
 
+  # EXP152: DTW OPTICS large-cluster stress test
+  - name: "EXP152"
+    experiment_name: "EXP152"
+    method: "optics"
+    distance_metric: "dtw"
+    optics: { min_samples: 50, xi: 0.06, min_cluster_size: 100 }
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
 flows:
   flow_keys: ["A/D", "Runway"]
   include: []
@@ -192,7 +216,7 @@ input:
 
 output:
   dir: "output"
-  skip_completed: true
+  skip_completed: false
 
 features:
   vector_cols: ["x_utm", "y_utm"]

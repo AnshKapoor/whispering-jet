@@ -285,6 +285,35 @@ experiments:
     input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
     features: { vector_cols: ["x_utm", "y_utm"] }
 
+  # EXP153: DTW HDBSCAN large-cluster stress test
+  - name: "EXP153"
+    experiment_name: "EXP153"
+    method: "hdbscan"
+    distance_metric: "dtw"
+    hdbscan:
+      min_cluster_size: 100
+      min_samples: 50
+      cluster_selection_method: "eom"
+      allow_single_cluster: true
+      cluster_selection_epsilon: 0.00
+    distance_params:
+      candidate_k: 999999
+      dtw_window_size: 8
+      use_lb_keogh: false
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 1000
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+      sparse_precomputed_policy: "dense_if_small"
+      sparse_precomputed_max_n: 1500
+      precomputed_embed_for_dbch: true
+      precomputed_embed_components: 3
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+    features: { vector_cols: ["x_utm", "y_utm"] }
+
 flows:
   flow_keys: ["A/D", "Runway"]
   include: []
@@ -294,7 +323,7 @@ input:
 
 output:
   dir: "output"
-  skip_completed: true
+  skip_completed: false
 
 features:
   vector_cols: ["x_utm", "y_utm"]

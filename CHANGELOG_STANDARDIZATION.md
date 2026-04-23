@@ -129,6 +129,27 @@ Where (L_{E,i}) is the single‑event exposure level, (g_i) is the time‑of‑d
 - Updated `scripts/plot_exp_latlon_flows.py` with `--exclude-noise` to generate cluster maps without `cluster_id = -1` flights.
 - Added no-noise output naming in flow plots: `clusters_<flow>_latlon_no_noise.png`.
 
+## 2026-04-03
+- Added reversed weighted-Euclidean DBSCAN pilot grid:
+  - `experiments/experiment_grid_133_137_weighted_euclidean_dbscan_reversed.yaml`
+- Pilot design:
+  - `preprocessed_1`
+  - sampled fit mode with `500 flights/flow`
+  - DBSCAN with `eps = 8000, 9000, 10050, 11050, 12050`
+  - `min_samples = 8`
+  - operation-aware weighted Euclidean with the original landing/departure step-group weights reversed:
+    - landing early emphasis
+    - departure late emphasis
+- Added weighted-Euclidean HDBSCAN pilot grid:
+  - `experiments/experiment_grid_138_142_weighted_euclidean_hdbscan.yaml`
+- Pilot design:
+  - `preprocessed_1`
+  - sampled fit mode with `500 flights/flow`
+  - HDBSCAN on the same operation-aware weighted-Euclidean precomputed distances
+  - `min_cluster_size = 12, 16, 20, 24, 30`
+  - `min_samples = null`
+  - precomputed embedding enabled for DB/CH evaluation
+
 ## 2026-03-21
 - Added operation-aware `euclidean_weighted` distance support in:
   - `clustering/distances.py`
@@ -262,5 +283,3 @@ Where (L_{E,i}) is the single‑event exposure level, (g_i) is the time‑of‑d
 - Cleaned `.gitignore`:
   - added ignores for `results/`, `.tmp_*.yaml`, and `.vscode/settings.json`
   - removed malformed trailing entries.
-
-
