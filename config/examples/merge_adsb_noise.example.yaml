@@ -1,0 +1,32 @@
+noise_excel: "noise_data.xlsx"
+
+adsb:
+  # Either use a glob ...
+  joblib_glob: "data/adsb/data_2022_*.joblib"
+  # ... or give explicit files here.
+  joblibs: []
+
+output:
+  traj_output_template: "matched_trajs_{month}_{year}.parquet"
+  output_dir: "matched_trajectories"
+
+matching:
+  # Time tolerance around the noise-event reference time.
+  tol_sec: 10
+  # Search radius multiplier = measured distance * (1 + buffer_frac).
+  buffer_frac: 0.5
+  # Symmetric extraction window around the reference time.
+  window_min: 3
+  # Keep at most one sample every N seconds in the extracted slice.
+  sample_interval_sec: 2
+  # Restrict output to the terminal area.
+  max_airport_distance_km: 25
+  dedupe_traj: true
+
+testing:
+  enabled: false
+  match_limit: 5
+
+logging:
+  level: "INFO"
+  log_file: null
