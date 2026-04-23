@@ -21,6 +21,161 @@ The actual noise simulation model can depend on external resources and local ass
 - [`noise_simulation/`](noise_simulation/README.md) should be treated as the interface layer to the noise-simulation stage, and
 - some subfolders may be empty in a shared or cleaned thesis package.
 
+## Quick Start for a New User
+
+Commands below are run from the repository root.
+
+### 1. Create a Python environment
+
+The workflow should be run inside a dedicated virtual environment. This avoids
+mixing thesis dependencies with system-wide Python packages and makes the
+package versions easier to reproduce.
+
+Reference environment used for the current repository:
+
+- Python `3.13.5`
+- isolated virtual environment in `.venv/`
+
+On Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+After activation, you can verify the interpreter with:
+
+```bash
+python --version
+```
+
+If you want to ensure the commands run against the virtual environment, use:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+instead of a bare `pip install`.
+
+On Linux or macOS:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 2. Place the raw input data
+
+The default thesis configuration expects:
+
+- ADS-B monthly joblib files in [`data/adsb/`](data/) with names matching `data_2022_*.joblib`
+- the noise-event workbook at the repository root as `noise_data.xlsx`
+
+These defaults come from:
+
+- [`config/merge_adsb_noise.yaml`](config/merge_adsb_noise.yaml)
+
+If your files are in a different location, edit that YAML first.
+
+### 2a. Reference package versions used
+
+The repository currently records unpinned dependencies in
+[`requirements.txt`](requirements.txt), but the environment used during the
+current thesis-facing setup had the following installed versions:
+
+| Package | Version used |
+|---|---|
+| `joblib` | `1.5.2` |
+| `matplotlib` | `3.10.7` |
+| `numpy` | `2.3.4` |
+| `openpyxl` | `3.1.5` |
+| `pandas` | `2.3.3` |
+| `pyproj` | `3.7.2` |
+| `PyYAML` | `6.0.2` |
+| `pytz` | `2025.2` |
+| `scipy` | `1.16.2` |
+| `shapely` | `2.1.2` |
+| `traffic` | `2.13` |
+| `scikit-learn` | `1.7.2` |
+| `hdbscan` | `0.8.41` |
+| `dtw-python` | `1.7.4` |
+| `frechetdist` | `0.6` |
+| `lcsspy` | `1.0.1` |
+
+These versions are informative rather than enforced. A fresh install from
+[`requirements.txt`](requirements.txt) may resolve to newer compatible package
+versions unless the file is later pinned.
+
+### 3. Edit the starting config for your first run
+
+For a new machine, the first file to check is usually:
+
+- [`config/merge_adsb_noise.yaml`](config/merge_adsb_noise.yaml)
+
+The most important fields for a first run are:
+
+- `noise_excel`
+- `adsb.joblib_glob` or `adsb.joblibs`
+- `output.output_dir`
+
+After matching works, the next file to check is:
+
+- [`config/backbone_full.yaml`](config/backbone_full.yaml)
+
+The most important fields there are:
+
+- `input.csv_glob`
+- `coordinates.use_utm`
+- `segmentation.*`
+- `preprocessing.smoothing.*`
+- `preprocessing.resampling.*`
+- `output.dir`
+
+If you want to generate multiple standardized preprocessing variants, edit:
+
+- [`config/preprocess_grid.yaml`](config/preprocess_grid.yaml)
+
+If you want to run clustering experiments, edit:
+
+- [`experiments/experiment_grid.yaml`](experiments/experiment_grid.yaml)
+
+### 4. Run the main stages
+
+```bash
+python scripts/run_merge_adsb_noise_batch.py -c config/merge_adsb_noise.yaml
+python scripts/run_preprocess_grid.py --grid config/preprocess_grid.yaml
+python scripts/run_experiment_grid.py --grid experiments/experiment_grid.yaml
+```
+
+If you only want one preprocessing run instead of the full grid:
+
+```bash
+python scripts/save_preprocessed.py -c config/backbone_full.yaml
+```
+
+## What to Expect After Each Step
+
+With the current canonical configs, the usual generated locations are:
+
+| Stage | Main script | Primary config | Typical output location |
+|---|---|---|---|
+| ADS-B / noise matching | [`scripts/run_merge_adsb_noise_batch.py`](scripts/run_merge_adsb_noise_batch.py) | [`config/merge_adsb_noise.yaml`](config/merge_adsb_noise.yaml) | `data/merged/` and/or [`matched_trajectories/`](matched_trajectories/) |
+| Single preprocessing run | [`scripts/save_preprocessed.py`](scripts/save_preprocessed.py) | [`config/backbone_full.yaml`](config/backbone_full.yaml) | `output/preprocessed/preprocessed_<id>.csv` |
+| Preprocessing grid | [`scripts/run_preprocess_grid.py`](scripts/run_preprocess_grid.py) | [`config/preprocess_grid.yaml`](config/preprocess_grid.yaml) | `output/preprocessed/` |
+| Clustering experiment grid | [`scripts/run_experiment_grid.py`](scripts/run_experiment_grid.py) | [`experiments/experiment_grid.yaml`](experiments/experiment_grid.yaml) | `output/experiments/EXP###/` |
+| EDA and summary plots | various scripts in [`scripts/`](scripts/) | script-specific | `output/eda/` |
+| Logs | batch and workflow scripts | script-specific | `logs/experiments/` and `logs/eda/` |
+
+For the exact output folder used by a run, check the relevant YAML:
+
+- `output.output_dir` in [`config/merge_adsb_noise.yaml`](config/merge_adsb_noise.yaml)
+- `output.dir` in [`config/backbone_full.yaml`](config/backbone_full.yaml)
+- experiment-specific output settings in [`experiments/experiment_grid.yaml`](experiments/experiment_grid.yaml)
+
 ## Repository Structure
 
 The most important folders are:
@@ -66,7 +221,7 @@ Flight__Clustering/
   Matched ADS-B trajectory snippets created after linking noise events to ADS-B data.
 
 - [`data/`](data/)  
-  Input data area. In the standardized workflow this includes ADS-B input files and preprocessed CSVs.
+  Input data area. In the standard setup, place raw ADS-B files under `data/adsb/`. Some generated intermediate files may also be written under `data/merged/`.
 
 - [`noise_simulation/`](noise_simulation/README.md)  
   Bridge from clustering outputs to the external Doc.29 noise-simulation stage.
@@ -126,7 +281,7 @@ Main configs:
 
 Typical output:
 
-- `data/preprocessed/preprocessed_<id>.csv`
+- `output/preprocessed/preprocessed_<id>.csv` with the current canonical configs
 
 ### 3. Run clustering experiments
 
