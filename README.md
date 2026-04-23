@@ -8,6 +8,8 @@ This repository contains the thesis workflow used to:
 4. prepare inputs for downstream ECAC Doc.29 noise simulation.
 
 The goal of this README is not to document every utility in the repository. It is to help a thesis reader quickly understand where the main code lives, how the folders relate to each other, and which scripts correspond to each stage of the workflow.
+<img width="1024" height="339" alt="image" src="https://github.com/user-attachments/assets/67ea6222-66d4-45d7-bce3-a7c325523996" />
+
 
 ## What This Repository Covers
 
