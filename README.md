@@ -1,4 +1,4 @@
-# Flight Trajectory Clustering for Thesis Work
+# Thesis: Development of a clustering Framework for Aircarft Noise Simulations
 
 This repository contains the thesis workflow used to:
 
