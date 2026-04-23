@@ -196,8 +196,7 @@ Flight__Clustering/
 |- output/
 |- logs/
 |- thesis/
-|- tests/
-`- legacy/
+`- tests/
 ```
 
 ### Folder guide
@@ -234,9 +233,6 @@ Flight__Clustering/
 
 - [`thesis/docs/`](thesis/docs/)  
   Supporting documentation and registries, especially the preprocessing and experiment registries used in the thesis write-up.
-
-- [`legacy/`](legacy/)  
-  Older scripts and archived material that are not part of the main thesis workflow.
 
 ## Main Workflow
 
