@@ -1,0 +1,154 @@
+experiments:
+  # EXP133-EXP137: weighted-Euclidean DBSCAN reversal test
+  # Same eps sweep as the final full-data weighted-Euclidean DBSCAN block,
+  # but with the operation-specific step weights reversed:
+  # - Landing: early points emphasized more than late points
+  # - Departure: late points emphasized more than early points
+  - name: "EXP133"
+    experiment_name: "EXP133"
+    method: "dbscan"
+    distance_metric: "euclidean_weighted"
+    dbscan: { eps: 8000, min_samples: 8 }
+    distance_params:
+      weighted_n_dims: 2
+      weighted_groups_by_operation:
+        Landing:
+          - { start_idx: 0, end_idx: 9, weight: 1.38 }
+          - { start_idx: 10, end_idx: 19, weight: 1.29 }
+          - { start_idx: 20, end_idx: 29, weight: 0.77 }
+          - { start_idx: 30, end_idx: 39, weight: 0.56 }
+        Departure:
+          - { start_idx: 0, end_idx: 9, weight: 0.54 }
+          - { start_idx: 10, end_idx: 19, weight: 0.67 }
+          - { start_idx: 20, end_idx: 29, weight: 1.03 }
+          - { start_idx: 30, end_idx: 39, weight: 1.76 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP134"
+    experiment_name: "EXP134"
+    method: "dbscan"
+    distance_metric: "euclidean_weighted"
+    dbscan: { eps: 9000, min_samples: 8 }
+    distance_params:
+      weighted_n_dims: 2
+      weighted_groups_by_operation:
+        Landing:
+          - { start_idx: 0, end_idx: 9, weight: 1.38 }
+          - { start_idx: 10, end_idx: 19, weight: 1.29 }
+          - { start_idx: 20, end_idx: 29, weight: 0.77 }
+          - { start_idx: 30, end_idx: 39, weight: 0.56 }
+        Departure:
+          - { start_idx: 0, end_idx: 9, weight: 0.54 }
+          - { start_idx: 10, end_idx: 19, weight: 0.67 }
+          - { start_idx: 20, end_idx: 29, weight: 1.03 }
+          - { start_idx: 30, end_idx: 39, weight: 1.76 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP135"
+    experiment_name: "EXP135"
+    method: "dbscan"
+    distance_metric: "euclidean_weighted"
+    dbscan: { eps: 10050, min_samples: 8 }
+    distance_params:
+      weighted_n_dims: 2
+      weighted_groups_by_operation:
+        Landing:
+          - { start_idx: 0, end_idx: 9, weight: 1.38 }
+          - { start_idx: 10, end_idx: 19, weight: 1.29 }
+          - { start_idx: 20, end_idx: 29, weight: 0.77 }
+          - { start_idx: 30, end_idx: 39, weight: 0.56 }
+        Departure:
+          - { start_idx: 0, end_idx: 9, weight: 0.54 }
+          - { start_idx: 10, end_idx: 19, weight: 0.67 }
+          - { start_idx: 20, end_idx: 29, weight: 1.03 }
+          - { start_idx: 30, end_idx: 39, weight: 1.76 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP136"
+    experiment_name: "EXP136"
+    method: "dbscan"
+    distance_metric: "euclidean_weighted"
+    dbscan: { eps: 11050, min_samples: 8 }
+    distance_params:
+      weighted_n_dims: 2
+      weighted_groups_by_operation:
+        Landing:
+          - { start_idx: 0, end_idx: 9, weight: 1.38 }
+          - { start_idx: 10, end_idx: 19, weight: 1.29 }
+          - { start_idx: 20, end_idx: 29, weight: 0.77 }
+          - { start_idx: 30, end_idx: 39, weight: 0.56 }
+        Departure:
+          - { start_idx: 0, end_idx: 9, weight: 0.54 }
+          - { start_idx: 10, end_idx: 19, weight: 0.67 }
+          - { start_idx: 20, end_idx: 29, weight: 1.03 }
+          - { start_idx: 30, end_idx: 39, weight: 1.76 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+  - name: "EXP137"
+    experiment_name: "EXP137"
+    method: "dbscan"
+    distance_metric: "euclidean_weighted"
+    dbscan: { eps: 12050, min_samples: 8 }
+    distance_params:
+      weighted_n_dims: 2
+      weighted_groups_by_operation:
+        Landing:
+          - { start_idx: 0, end_idx: 9, weight: 1.38 }
+          - { start_idx: 10, end_idx: 19, weight: 1.29 }
+          - { start_idx: 20, end_idx: 29, weight: 0.77 }
+          - { start_idx: 30, end_idx: 39, weight: 0.56 }
+        Departure:
+          - { start_idx: 0, end_idx: 9, weight: 0.54 }
+          - { start_idx: 10, end_idx: 19, weight: 0.67 }
+          - { start_idx: 20, end_idx: 29, weight: 1.03 }
+          - { start_idx: 30, end_idx: 39, weight: 1.76 }
+    sample_for_fit:
+      enabled: true
+      max_flights_per_flow: 500
+      random_state: 11
+      mode: "sample_only"
+    evaluation:
+      include_noise: false
+    input: { preprocessed_csv: "output/preprocessed/preprocessed_1.csv" }
+
+flows:
+  flow_keys: ["A/D", "Runway"]
+  include: []
+
+input:
+  preprocessed_csv: "output/preprocessed/preprocessed_1.csv"
+
+output:
+  dir: "output"
+  skip_completed: false
+
+features:
+  vector_cols: ["x_utm", "y_utm"]
