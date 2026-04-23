@@ -212,6 +212,8 @@ Flight__Clustering/
 
 - [`clustering/`](clustering/)  
   Distance-matrix construction, clustering registry, and evaluation utilities.
+  For a user-facing explanation of clustering outputs, label files, and cluster numbering,
+  see [`clustering/README.md`](clustering/README.md).
 
 - [`experiments/`](experiments/)  
   Experiment runner plus experiment-grid YAML files for parameter sweeps.
@@ -340,6 +342,7 @@ If a reader wants to understand the thesis pipeline quickly, these are the first
 - Experiment execution: [`experiments/runner.py`](experiments/runner.py)
 - Distance metrics: [`clustering/distances.py`](clustering/distances.py)
 - Metric evaluation: [`clustering/evaluation.py`](clustering/evaluation.py)
+- Clustering outputs and labels guide: [`clustering/README.md`](clustering/README.md)
 - Backbone extraction: [`backbone_tracks/backbone.py`](backbone_tracks/backbone.py)
 - Noise-simulation interface: [`noise_simulation/generate_doc29_inputs.py`](noise_simulation/generate_doc29_inputs.py)
 
