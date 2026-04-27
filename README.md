@@ -329,6 +329,14 @@ Main scripts:
 - [`noise_simulation/run_doc29_ground_truth.py`](noise_simulation/run_doc29_ground_truth.py)
 - [`noise_simulation/compare_experiment_totals.py`](noise_simulation/compare_experiment_totals.py)
 
+Additional noise simulation utilities:
+
+- [`noise_simulation/rebuild_ground_truth_cumulative.py`](noise_simulation/rebuild_ground_truth_cumulative.py) — recomputes energy-domain aggregation from existing Doc29 batch outputs to fix incorrect dB-domain summation.
+- [`noise_simulation/summarize_experiment_batches.py`](noise_simulation/summarize_experiment_batches.py) — writes batch Markdown summaries combining clustering metrics and noise totals for a set of experiments.
+- [`noise_simulation/plot_cluster_cumulative_compare.py`](noise_simulation/plot_cluster_cumulative_compare.py) — plots per-receiver cumulative noise comparison between cluster subtracks and individual flights.
+- [`noise_simulation/receiver_points.py`](noise_simulation/receiver_points.py) — *module:* maps Doc29 UTM32N receiver coordinates to the fixed Hannover measuring points MP1–MP9 (used by other noise-simulation scripts, not a standalone entry point).
+- [`noise_simulation/ground_track_generation_for_ansh.py`](noise_simulation/ground_track_generation_for_ansh.py) — *module:* provides the `groundtrack_interpolation` helper class for cubic-spline resampling of Doc29 ground tracks (used as a utility module).
+
 Important note:
 
 - the actual simulation backend and some required assets may be external to this repository; see [`noise_simulation/README.md`](noise_simulation/README.md).
@@ -483,6 +491,125 @@ python scripts/run_experiment_grid.py --grid experiments/experiment_grid.yaml
 ```bash
 python scripts/plot_exp_latlon_flows.py EXP001
 ```
+
+## Script Reference
+
+The table below lists every runnable script in [`scripts/`](scripts/) and [`noise_simulation/`](noise_simulation/), grouped by purpose. The core workflow scripts are also described individually in the sections above; they are repeated here for completeness.
+
+### Core workflow scripts
+
+| Script | Purpose |
+|---|---|
+| [`scripts/merge_adsb_noise.py`](scripts/merge_adsb_noise.py) | Match noise events to ADS-B trajectories (primary matching logic). |
+| [`scripts/run_merge_adsb_noise_batch.py`](scripts/run_merge_adsb_noise_batch.py) | Batch launcher for the matching step. |
+| [`scripts/save_preprocessed.py`](scripts/save_preprocessed.py) | Run a single preprocessing pass and save the output CSV. |
+| [`scripts/run_preprocess_grid.py`](scripts/run_preprocess_grid.py) | Run multiple preprocessing variants defined in a YAML grid. |
+| [`scripts/run_experiment_grid.py`](scripts/run_experiment_grid.py) | Execute a clustering experiment grid. |
+| [`scripts/cli.py`](scripts/cli.py) | Command-line interface for backbone extraction and related operations. |
+| [`scripts/plot_backbone_tracks.py`](scripts/plot_backbone_tracks.py) | Plot backbone tracks for one or more experiments. |
+| [`scripts/plot_exp_latlon_flows.py`](scripts/plot_exp_latlon_flows.py) | Plot clustered flight flows in lat/lon for a given experiment. |
+
+### EDA and analysis scripts
+
+| Script | Purpose |
+|---|---|
+| [`scripts/raw_adsb_eda.py`](scripts/raw_adsb_eda.py) | Characterize raw ADS-B coverage and quality before noise matching. Output: `output/eda/`. |
+| [`scripts/eda_adsb_monthly.py`](scripts/eda_adsb_monthly.py) | Summarize and plot per-month ADS-B joblib statistics. Usage: `python scripts/eda_adsb_monthly.py --input-dir data/adsb --outdir output/eda/adsb_monthly`. |
+| [`scripts/eda_unique_matched_trajectories.py`](scripts/eda_unique_matched_trajectories.py) | Compute repetition-aware unique flight-event counts from matched trajectories. |
+| [`scripts/eda_flow_speed_stats.py`](scripts/eda_flow_speed_stats.py) | Summarize per-flow stepwise speed proxies from a preprocessed CSV; useful for velocity-leakage diagnostics. |
+| [`scripts/eda_flow_endpoint_outliers.py`](scripts/eda_flow_endpoint_outliers.py) | Assess per-flow endpoint consistency and flag unusual flights. |
+| [`scripts/eda_noise_clustering_summary.py`](scripts/eda_noise_clustering_summary.py) | Summarize noise-simulation vs clustering performance across experiments EXP001–EXP062. |
+| [`scripts/eda_preprocessed_pca.py`](scripts/eda_preprocessed_pca.py) | Compute PCA explained variance from interleaved UTM trajectory vectors. |
+| [`scripts/eda_pairwise_distance_scales.py`](scripts/eda_pairwise_distance_scales.py) | Audit and compare pairwise distance scales across Euclidean, DTW, and Fréchet metrics. |
+| [`scripts/eda_euclidean_speed_impact.py`](scripts/eda_euclidean_speed_impact.py) | Quantify how trajectory speed/progression differences affect index-based Euclidean distances. |
+| [`scripts/eda_raw_lengths.py`](scripts/eda_raw_lengths.py) | Pre-assess raw flight trajectory lengths before preprocessing. Usage: `python scripts/eda_raw_lengths.py -c config/backbone_full.yaml --outdir output/eda/raw_lengths`. |
+| [`scripts/eda_flight_counts.py`](scripts/eda_flight_counts.py) | Compute flight counts by runway, operation type, and aircraft type from matched trajectories. Usage: `python scripts/eda_flight_counts.py -c config/backbone_full.yaml --outdir output/eda/flight_counts`. |
+| [`scripts/run_eda_combo.py`](scripts/run_eda_combo.py) | Combined EDA runner that calls several EDA scripts in one pass. |
+
+### Preprocessing utilities
+
+| Script | Purpose |
+|---|---|
+| [`scripts/check_preprocessed_grid_status.py`](scripts/check_preprocessed_grid_status.py) | Check which preprocessed output files from a preprocess grid already exist on disk. |
+| [`scripts/check_preprocessed_repetitions.py`](scripts/check_preprocessed_repetitions.py) | Audit repeated flight-measurement events in existing preprocessed outputs. |
+| [`scripts/summarize_mp_repetitions.py`](scripts/summarize_mp_repetitions.py) | Summarize per-run MP repetition diagnostics created by `save_preprocessed.py`. |
+| [`scripts/filter_preprocessed_endpoint_outliers.py`](scripts/filter_preprocessed_endpoint_outliers.py) | Filter a preprocessed CSV by flight-level endpoint outlier flags. |
+| [`scripts/audit_preprocessed_ground_truth.py`](scripts/audit_preprocessed_ground_truth.py) | Audit preprocessed CSV variants against ground-truth noise receiver variation. |
+
+### Plotting and visualization scripts
+
+| Script | Purpose |
+|---|---|
+| [`scripts/plot_preprocessed_flows.py`](scripts/plot_preprocessed_flows.py) | Plot sampled trajectories from a preprocessed CSV, colored by flow (`A/D_Runway`). |
+| [`scripts/plot_preprocessed_flight_comparison.py`](scripts/plot_preprocessed_flight_comparison.py) | Overlay the same flight across multiple preprocessed CSV variants for side-by-side comparison. |
+| [`scripts/plot_hdbscan_diagnostics.py`](scripts/plot_hdbscan_diagnostics.py) | Generate HDBSCAN cluster-size / condensed-tree diagnostic artefacts for an experiment. |
+| [`scripts/plot_backbone_side_by_side.py`](scripts/plot_backbone_side_by_side.py) | Side-by-side backbone comparison for one flow across two experiments. Usage: `python scripts/plot_backbone_side_by_side.py --left EXP016 --right EXP017 --flow Start_09L`. |
+| [`scripts/plot_experiment_results.py`](scripts/plot_experiment_results.py) | Plot clustering summary results from an experiment output folder. |
+| [`scripts/plot_metrics_doc29.py`](scripts/plot_metrics_doc29.py) | Bar plots comparing silhouette, Davies-Bouldin, and Calinski-Harabasz scores across Doc29 experiments. |
+| [`scripts/plot_noise_subset_overlay.py`](scripts/plot_noise_subset_overlay.py) | Plot retained flights for one experiment/flow/cluster/aircraft subset. Output: `output/eda/noise_subset_audits/`. |
+| [`scripts/plot_doc29_transform_comparison.py`](scripts/plot_doc29_transform_comparison.py) | Three-panel comparison showing retained flights, cluster backbone, and final Doc29 ground tracks. |
+| [`scripts/plot_doc29_groundtruth_transform.py`](scripts/plot_doc29_groundtruth_transform.py) | Two-panel plot of per-flight Doc29 ground-truth track transformation for one subset. |
+| [`scripts/plot_doc29_subtrack_diagnostic.py`](scripts/plot_doc29_subtrack_diagnostic.py) | Four-panel diagnostic for raw vs final Doc29 7-track geometry. |
+| [`scripts/plot_noise_results.py`](scripts/plot_noise_results.py) | Plot noise simulation outputs as a colored scatter map of receiver-point noise levels. |
+
+### Experiment management
+
+| Script | Purpose |
+|---|---|
+| [`scripts/fix_metrics_global.py`](scripts/fix_metrics_global.py) | Recompute `metrics_global.csv` with NaN-excluded weighted metrics for all experiments. Usage: `python scripts/fix_metrics_global.py --experiments-dir output/experiments`. |
+| [`scripts/recompute_precomputed_metrics.py`](scripts/recompute_precomputed_metrics.py) | Post-hoc utility to fill silhouette/DB/CH for precomputed DTW/Fréchet runs where original metrics were skipped. |
+| [`scripts/rank_dtw_pilot_and_promote.py`](scripts/rank_dtw_pilot_and_promote.py) | Rank DTW pilot runs by composite score and optionally promote winners into EXP021–EXP024. |
+| [`scripts/export_exp001_050_master_results_table.py`](scripts/export_exp001_050_master_results_table.py) | Export a master verification table combining global and per-flow metrics for EXP001–EXP050. |
+| [`scripts/run_compare_experiment_totals_batch.py`](scripts/run_compare_experiment_totals_batch.py) | Batch runner for `noise_simulation/compare_experiment_totals.py` across a numeric experiment range. |
+
+### Noise simulation support (in `scripts/`)
+
+| Script | Purpose |
+|---|---|
+| [`scripts/attach_global_ground_truth_to_experiment_totals.py`](scripts/attach_global_ground_truth_to_experiment_totals.py) | Attach all-flights ground-truth totals to experiment aggregate noise results. |
+| [`scripts/doc29_tracks.py`](scripts/doc29_tracks.py) | Generate Doc29-style 7-track overlays (backbone + 6 side tracks) for a flow. |
+| [`scripts/velocity_leakage_audit.py`](scripts/velocity_leakage_audit.py) | Quantify whether trajectory time-parameterization (velocity effects) changes clustering outcomes. |
+| [`scripts/velocity_leakage_diagnostic.py`](scripts/velocity_leakage_diagnostic.py) | Diagnostic comparing index-aligned Euclidean vs arc-length-aligned distances on individual flight pairs. |
+
+### KML export
+
+| Script | Purpose |
+|---|---|
+| [`scripts/export_experiment_kml.py`](scripts/export_experiment_kml.py) | Export clustered flights from an experiment to a KML file. Usage: `python scripts/export_experiment_kml.py --experiment EXP001`. |
+| [`scripts/export_preprocessed_kml.py`](scripts/export_preprocessed_kml.py) | Export sampled preprocessed trajectories to a KML file (sampled per flow in WGS84). |
+
+### Demo and interactive-diagnostic scripts
+
+| Script | Purpose |
+|---|---|
+| [`scripts/degree_vs_utm_demo.py`](scripts/degree_vs_utm_demo.py) | Demo comparing degree-space vs UTM-space distance behavior on sample flights. |
+| [`scripts/frechet_distance_demo.py`](scripts/frechet_distance_demo.py) | Interactive discrete Fréchet distance demo for two flights from a preprocessed CSV. |
+| [`scripts/dtw_alignment_demo.py`](scripts/dtw_alignment_demo.py) | Interactive DTW alignment demo using the project DTW configuration. |
+| [`scripts/probe_dtw_dbscan_eps.py`](scripts/probe_dtw_dbscan_eps.py) | Probe DBSCAN `eps` for DTW distance matrices using k-distance curves. |
+| [`scripts/hdbscan_toy_debug.py`](scripts/hdbscan_toy_debug.py) | Minimal HDBSCAN run for attaching a debugger and stepping through `fit()`. |
+
+### Data utilities
+
+| Script | Purpose |
+|---|---|
+| [`scripts/convert_adsb_joblib_to_csv.py`](scripts/convert_adsb_joblib_to_csv.py) | Convert ADS-B joblib (traffic) files to CSV/Parquet format. |
+| [`scripts/inspect_joblib_dataset.py`](scripts/inspect_joblib_dataset.py) | Inspect the structure and contents of an ADS-B joblib dataset. |
+
+### `noise_simulation/` scripts
+
+The following scripts live inside [`noise_simulation/`](noise_simulation/) and are part of the Doc.29 simulation stage. See [`noise_simulation/README.md`](noise_simulation/README.md) for context. Rows labelled *Module* are utility modules imported by other scripts; they are not intended to be run directly.
+
+| Script | Purpose |
+|---|---|
+| [`noise_simulation/generate_doc29_inputs.py`](noise_simulation/generate_doc29_inputs.py) | Generate Doc29 input files from clustering outputs. |
+| [`noise_simulation/run_doc29_experiment.py`](noise_simulation/run_doc29_experiment.py) | Run Doc29 noise simulation for a clustering experiment. |
+| [`noise_simulation/run_doc29_ground_truth.py`](noise_simulation/run_doc29_ground_truth.py) | Run Doc29 ground-truth noise simulation (all individual flights). |
+| [`noise_simulation/compare_experiment_totals.py`](noise_simulation/compare_experiment_totals.py) | Compare aggregate noise totals between an experiment and the ground truth. |
+| [`noise_simulation/rebuild_ground_truth_cumulative.py`](noise_simulation/rebuild_ground_truth_cumulative.py) | Rebuild ground-truth cumulative files with correct energy-domain aggregation. |
+| [`noise_simulation/summarize_experiment_batches.py`](noise_simulation/summarize_experiment_batches.py) | Write Markdown batch summaries combining clustering metrics and noise totals. |
+| [`noise_simulation/plot_cluster_cumulative_compare.py`](noise_simulation/plot_cluster_cumulative_compare.py) | Plot per-receiver cumulative noise comparison between cluster subtracks and individual flights. |
+| [`noise_simulation/receiver_points.py`](noise_simulation/receiver_points.py) | *Module:* maps Doc29 receiver coordinates to Hannover measuring points MP1–MP9 (used by other scripts). |
+| [`noise_simulation/ground_track_generation_for_ansh.py`](noise_simulation/ground_track_generation_for_ansh.py) | *Module:* `groundtrack_interpolation` helper class for cubic-spline Doc29 ground-track resampling. |
 
 ## Development Notes
 
